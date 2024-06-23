@@ -1,0 +1,23 @@
+# permissions for end users to view tornetworksidecarcontrollerconfigs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: tor-on-your-side
+    app.kubernetes.io/managed-by: kustomize
+  name: tornetworksidecarcontrollerconfig-viewer-role
+rules:
+- apiGroups:
+  - tor.fulvio.dev
+  resources:
+  - tornetworksidecarcontrollerconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - tor.fulvio.dev
+  resources:
+  - tornetworksidecarcontrollerconfigs/status
+  verbs:
+  - get

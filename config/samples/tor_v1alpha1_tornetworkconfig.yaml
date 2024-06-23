@@ -1,0 +1,9 @@
+apiVersion: tor.fulvio.dev/v1alpha1
+kind: TorNetworkConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: tor-on-your-side
+    app.kubernetes.io/managed-by: kustomize
+  name: tornetworkconfig-sample
+spec:
+  # TODO(user): Add fields here
