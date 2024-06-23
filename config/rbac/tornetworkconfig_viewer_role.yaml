@@ -3,7 +3,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
-    app.kubernetes.io/name: tor-on-your-side
+    app.kubernetes.io/name: torproxy
     app.kubernetes.io/managed-by: kustomize
   name: tornetworkconfig-viewer-role
 rules:

@@ -2,7 +2,7 @@ apiVersion: tor.fulvio.dev/v1alpha1
 kind: TorNetworkSidecarControllerConfig
 metadata:
   labels:
-    app.kubernetes.io/name: tor-on-your-side
+    app.kubernetes.io/name: torproxy
     app.kubernetes.io/managed-by: kustomize
   name: tornetworksidecarcontrollerconfig-sample
 spec:

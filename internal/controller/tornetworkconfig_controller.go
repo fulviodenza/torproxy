@@ -94,8 +94,10 @@ func (r *TorNetworkConfigReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 		if !hasTorSidecar {
 			sidecar := corev1.Container{
-				Name:  "tor-sidecar",
-				Image: "yourusername/torproxy:latest",
+				Name: "tor-sidecar",
+				// TBD: define the image to pull from the
+				// registry. This is the container that runs tor
+				Image: "fulviodenza/torproxy:latest",
 				Ports: []corev1.ContainerPort{
 					{
 						ContainerPort: 9050, // Tor SOCKS port

@@ -5,7 +5,7 @@
 domain: fulvio.dev
 layout:
 - go.kubebuilder.io/v4
-projectName: tor-on-your-side
+projectName: torproxy
 repo: github.com/fulviodenza/torproxy
 resources:
 - api:
