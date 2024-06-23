@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	torv1alpha1 "github.com/fulviodenza/SideTor/api/v1alpha1"
+	torv1alpha1 "github.com/fulviodenza/torproxy/api/v1alpha1"
 )
 
 // TorNetworkSidecarControllerConfigReconciler reconciles a TorNetworkSidecarControllerConfig object

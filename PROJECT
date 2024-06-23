@@ -6,7 +6,7 @@ domain: fulvio.dev
 layout:
 - go.kubebuilder.io/v4
 projectName: tor-on-your-side
-repo: github.com/fulviodenza/SideTor
+repo: github.com/fulviodenza/torproxy
 resources:
 - api:
     crdVersion: v1
@@ -15,7 +15,7 @@ resources:
   domain: fulvio.dev
   group: tor
   kind: TorNetworkConfig
-  path: github.com/fulviodenza/SideTor/api/v1alpha1
+  path: github.com/fulviodenza/torproxy/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -24,6 +24,6 @@ resources:
   domain: fulvio.dev
   group: tor
   kind: TorNetworkSidecarControllerConfig
-  path: github.com/fulviodenza/SideTor/api/v1alpha1
+  path: github.com/fulviodenza/torproxy/api/v1alpha1
   version: v1alpha1
 version: "3"

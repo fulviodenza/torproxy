@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	torv1alpha1 "github.com/fulviodenza/SideTor/api/v1alpha1"
+	torv1alpha1 "github.com/fulviodenza/torproxy/api/v1alpha1"
 )
 
 var _ = Describe("TorNetworkSidecarControllerConfig Controller", func() {

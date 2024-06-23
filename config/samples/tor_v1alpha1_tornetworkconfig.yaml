@@ -1,9 +1,14 @@
 apiVersion: tor.fulvio.dev/v1alpha1
 kind: TorNetworkConfig
 metadata:
-  labels:
-    app.kubernetes.io/name: tor-on-your-side
-    app.kubernetes.io/managed-by: kustomize
-  name: tornetworkconfig-sample
+  name: example-config
 spec:
-  # TODO(user): Add fields here
+  defaultExitNodes:
+    - country: 'us'
+    - country: 'de'
+  hiddenServices:
+    - hostname: 'example1.onion'
+      targetPort: 80
+    - hostname: 'example2.onion'
+      targetPort: 443
+  metricsEnabled: true

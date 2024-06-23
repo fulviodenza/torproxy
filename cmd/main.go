@@ -34,8 +34,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	torv1alpha1 "github.com/fulviodenza/SideTor/api/v1alpha1"
-	"github.com/fulviodenza/SideTor/internal/controller"
+	torv1alpha1 "github.com/fulviodenza/torproxy/api/v1alpha1"
+	"github.com/fulviodenza/torproxy/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
 

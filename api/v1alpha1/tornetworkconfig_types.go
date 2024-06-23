@@ -11,10 +11,12 @@ type TorNetworkConfigSpec struct {
 	MetricsEnabled   bool            `json:"metricsEnabled,omitempty"`
 }
 
+// ExitNode represents a Tor exit node configuration
 type ExitNode struct {
 	Country string `json:"country,omitempty"`
 }
 
+// HiddenService represents a Tor hidden service configuration
 type HiddenService struct {
 	Hostname   string `json:"hostname,omitempty"`
 	TargetPort int    `json:"targetPort,omitempty"`
@@ -22,7 +24,7 @@ type HiddenService struct {
 
 // TorNetworkConfigStatus defines the observed state of TorNetworkConfig
 type TorNetworkConfigStatus struct {
-	// Define observed state of the cluster
+	// TBD
 }
 
 // +kubebuilder:object:root=true

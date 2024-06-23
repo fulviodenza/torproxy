@@ -41,6 +41,7 @@ spec:
             properties:
               defaultExitNodes:
                 items:
+                  description: ExitNode represents a Tor exit node configuration
                   properties:
                     country:
                       type: string
@@ -48,6 +49,7 @@ spec:
                 type: array
               hiddenServices:
                 items:
+                  description: HiddenService represents a Tor hidden service configuration
                   properties:
                     hostname:
                       type: string

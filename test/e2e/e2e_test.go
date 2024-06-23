@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/fulviodenza/SideTor/test/utils"
+	"github.com/fulviodenza/torproxy/test/utils"
 )
 
 const namespace = "tor-on-your-side-system"
