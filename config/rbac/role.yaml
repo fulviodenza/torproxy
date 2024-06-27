@@ -31,6 +31,32 @@ rules:
 - apiGroups:
   - tor.fulvio.dev
   resources:
+  - TorConfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tor.fulvio.dev
+  resources:
+  - TorConfigs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - tor.fulvio.dev
+  resources:
+  - TorConfigs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - tor.fulvio.dev
+  resources:
   - tornetworkconfigs
   verbs:
   - create
@@ -50,32 +76,6 @@ rules:
   - tor.fulvio.dev
   resources:
   - tornetworkconfigs/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - tor.fulvio.dev
-  resources:
-  - tornetworksidecarcontrollerconfigs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - tor.fulvio.dev
-  resources:
-  - tornetworksidecarcontrollerconfigs/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - tor.fulvio.dev
-  resources:
-  - tornetworksidecarcontrollerconfigs/status
   verbs:
   - get
   - patch

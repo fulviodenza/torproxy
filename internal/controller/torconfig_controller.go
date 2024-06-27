@@ -27,26 +27,26 @@ import (
 	torv1alpha1 "github.com/fulviodenza/torproxy/api/v1alpha1"
 )
 
-// TorNetworkSidecarControllerConfigReconciler reconciles a TorNetworkSidecarControllerConfig object
-type TorNetworkSidecarControllerConfigReconciler struct {
+// TorConfigReconciler reconciles a TorConfig object
+type TorConfigReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=tor.fulvio.dev,resources=tornetworksidecarcontrollerconfigs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=tor.fulvio.dev,resources=tornetworksidecarcontrollerconfigs/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=tor.fulvio.dev,resources=tornetworksidecarcontrollerconfigs/finalizers,verbs=update
+// +kubebuilder:rbac:groups=tor.fulvio.dev,resources=TorConfigs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=tor.fulvio.dev,resources=TorConfigs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=tor.fulvio.dev,resources=TorConfigs/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the TorNetworkSidecarControllerConfig object against the actual cluster state, and then
+// the TorConfig object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.18.2/pkg/reconcile
-func (r *TorNetworkSidecarControllerConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *TorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
 	// TODO(user): your logic here
@@ -55,8 +55,8 @@ func (r *TorNetworkSidecarControllerConfigReconciler) Reconcile(ctx context.Cont
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *TorNetworkSidecarControllerConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *TorConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&torv1alpha1.TorNetworkSidecarControllerConfig{}).
+		For(&torv1alpha1.TorConfig{}).
 		Complete(r)
 }

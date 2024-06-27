@@ -23,7 +23,7 @@ resources:
   controller: true
   domain: fulvio.dev
   group: tor
-  kind: TorNetworkSidecarControllerConfig
+  kind: TorConfig
   path: github.com/fulviodenza/torproxy/api/v1alpha1
   version: v1alpha1
 version: "3"

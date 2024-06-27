@@ -4,21 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.15.0
-  name: TorConfigs.tor.fulvio.dev
+  name: torconfigs.tor.fulvio.dev
 spec:
   group: tor.fulvio.dev
   names:
     kind: TorConfig
     listKind: TorConfigList
-    plural: TorConfigs
-    singular: TorConfig
+    plural: torconfigs
+    singular: torconfig
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: TorConfig is the Schema for the TorConfigs
-          API
+        description: TorConfig is the Schema for the TorConfigs API
         properties:
           apiVersion:
             description: |-
@@ -38,17 +37,23 @@ spec:
           metadata:
             type: object
           spec:
-            description: TorConfigSpec defines the desired
-              state of TorConfig
+            description: TorConfigSpec defines the desired state of TorConfig
             properties:
-              foo:
-                description: Foo is an example field of TorConfig.
-                  Edit TorConfig_types.go to remove/update
+              contactInfo:
+                type: string
+              dirPort:
+                type: integer
+              image:
+                type: string
+              nickname:
+                type: string
+              orPort:
+                type: integer
+              relayType:
                 type: string
             type: object
           status:
-            description: TorConfigStatus defines the observed
-              state of TorConfig
+            description: TorConfigStatus defines the observed state of TorConfig
             type: object
         type: object
     served: true
