@@ -130,11 +130,11 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "TorNetworkConfig")
 		os.Exit(1)
 	}
-	if err = (&controller.TorConfigReconciler{
+	if err = (&controller.TorBridgeConfigReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "TorConfig")
+		setupLog.Error(err, "unable to create controller", "controller", "TorBridgeConfig")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

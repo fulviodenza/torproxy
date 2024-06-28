@@ -4,21 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.15.0
-  name: TorBridgeConfigs.tor.fulvio.dev
+  name: torbridgeconfigs.tor.fulvio.dev
 spec:
   group: tor.fulvio.dev
   names:
     kind: TorBridgeConfig
     listKind: TorBridgeConfigList
-    plural: TorBridgeConfigs
-    singular: TorBridgeConfig
+    plural: torbridgeconfigs
+    singular: torbridgeconfig
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: TorBridgeConfig is the Schema for the TorBridgeConfigs
-          API
+        description: TorBridgeConfig is the Schema for the TorBridgeConfigs API
         properties:
           apiVersion:
             description: |-
@@ -38,17 +37,29 @@ spec:
           metadata:
             type: object
           spec:
-            description: TorBridgeConfigSpec defines the desired
-              state of TorBridgeConfig
+            description: TorBridgeConfigSpec defines the desired state of TorBridgeConfig
             properties:
-              foo:
-                description: Foo is an example field of TorBridgeConfig.
-                  Edit TorBridgeConfig_types.go to remove/update
+              contactInfo:
+                type: string
+              dirPort:
+                type: integer
+              extOrPort:
+                type: string
+              image:
+                type: string
+              nickname:
+                type: string
+              orPort:
+                type: integer
+              relayType:
+                type: string
+              serverTransportListenAddr:
+                type: string
+              serverTransportPlugin:
                 type: string
             type: object
           status:
-            description: TorBridgeConfigStatus defines the observed
-              state of TorBridgeConfig
+            description: TorBridgeConfigStatus defines the observed state of TorBridgeConfig
             type: object
         type: object
     served: true

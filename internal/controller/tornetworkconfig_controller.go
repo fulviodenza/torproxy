@@ -43,7 +43,7 @@ func (r *TorNetworkConfigReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	log.Info("Reconciling TorNetworkConfig", "config", torNetworkConfig)
 
 	configMapName := "tor-config-" + torNetworkConfig.Name
-	torConfig := generateTorConfig(torNetworkConfig.Spec)
+	TorBridgeConfig := generateTorBridgeConfig(torNetworkConfig.Spec)
 
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: ctrl.ObjectMeta{
@@ -51,7 +51,7 @@ func (r *TorNetworkConfigReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			Name:      configMapName,
 		},
 		Data: map[string]string{
-			"torrc": torConfig,
+			"torrc": TorBridgeConfig,
 		},
 	}
 
@@ -146,18 +146,18 @@ func (r *TorNetworkConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func generateTorConfig(spec torv1alpha1.TorNetworkConfigSpec) string {
-	var torConfig strings.Builder
+func generateTorBridgeConfig(spec torv1alpha1.TorNetworkConfigSpec) string {
+	var TorBridgeConfig strings.Builder
 
-	torConfig.WriteString("SOCKSPort 0.0.0.0:9050\n")
-	torConfig.WriteString(fmt.Sprintf("ExitNodes %s\n", formatExitNodes(spec.DefaultExitNodes)))
+	TorBridgeConfig.WriteString("SOCKSPort 0.0.0.0:9050\n")
+	TorBridgeConfig.WriteString(fmt.Sprintf("ExitNodes %s\n", formatExitNodes(spec.DefaultExitNodes)))
 
 	for _, hs := range spec.HiddenServices {
-		torConfig.WriteString(fmt.Sprintf("HiddenServiceDir /var/lib/tor/hidden_service/%s\n", hs.Hostname))
-		torConfig.WriteString(fmt.Sprintf("HiddenServicePort %d\n", hs.TargetPort))
+		TorBridgeConfig.WriteString(fmt.Sprintf("HiddenServiceDir /var/lib/tor/hidden_service/%s\n", hs.Hostname))
+		TorBridgeConfig.WriteString(fmt.Sprintf("HiddenServicePort %d\n", hs.TargetPort))
 	}
 
-	return torConfig.String()
+	return TorBridgeConfig.String()
 }
 
 func formatExitNodes(exitNodes []torv1alpha1.ExitNode) string {

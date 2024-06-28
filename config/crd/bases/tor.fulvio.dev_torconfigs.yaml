@@ -4,20 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.15.0
-  name: torconfigs.tor.fulvio.dev
+  name: TorBridgeConfigs.tor.fulvio.dev
 spec:
   group: tor.fulvio.dev
   names:
-    kind: TorConfig
-    listKind: TorConfigList
-    plural: torconfigs
-    singular: torconfig
+    kind: TorBridgeConfig
+    listKind: TorBridgeConfigList
+    plural: TorBridgeConfigs
+    singular: TorBridgeConfig
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: TorConfig is the Schema for the TorConfigs API
+        description: TorBridgeConfig is the Schema for the TorBridgeConfigs API
         properties:
           apiVersion:
             description: |-
@@ -37,7 +37,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: TorConfigSpec defines the desired state of TorConfig
+            description: TorBridgeConfigSpec defines the desired state of TorBridgeConfig
             properties:
               contactInfo:
                 type: string
@@ -53,7 +53,7 @@ spec:
                 type: string
             type: object
           status:
-            description: TorConfigStatus defines the observed state of TorConfig
+            description: TorBridgeConfigStatus defines the observed state of TorBridgeConfig
             type: object
         type: object
     served: true

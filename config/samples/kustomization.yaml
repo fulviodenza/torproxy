@@ -1,5 +1,5 @@
 ## Append samples of your project ##
 resources:
 - tor_v1alpha1_tornetworkconfig.yaml
-- tor_v1alpha1_TorConfig.yaml
+- tor_v1alpha1_TorBridgeConfig.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

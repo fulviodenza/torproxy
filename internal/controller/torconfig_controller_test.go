@@ -30,7 +30,7 @@ import (
 	torv1alpha1 "github.com/fulviodenza/torproxy/api/v1alpha1"
 )
 
-var _ = Describe("TorConfig Controller", func() {
+var _ = Describe("TorBridgeConfig Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
 
@@ -38,37 +38,35 @@ var _ = Describe("TorConfig Controller", func() {
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: "default",
 		}
-		TorConfig := &torv1alpha1.TorConfig{}
+		TorBridgeConfig := &torv1alpha1.TorBridgeConfig{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind TorConfig")
-			err := k8sClient.Get(ctx, typeNamespacedName, TorConfig)
+			By("creating the custom resource for the Kind TorBridgeConfig")
+			err := k8sClient.Get(ctx, typeNamespacedName, TorBridgeConfig)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &torv1alpha1.TorConfig{
+				resource := &torv1alpha1.TorBridgeConfig{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					// TODO(user): Specify other spec details if needed.
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &torv1alpha1.TorConfig{}
+			resource := &torv1alpha1.TorBridgeConfig{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance TorConfig")
+			By("Cleanup the specific resource instance TorBridgeConfig")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
-			controllerReconciler := &TorConfigReconciler{
+			controllerReconciler := &TorBridgeConfigReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
 			}
@@ -77,8 +75,6 @@ var _ = Describe("TorConfig Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
 		})
 	})
 })
