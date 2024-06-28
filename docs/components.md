@@ -1,7 +1,7 @@
 # High level resource definition:
 
 - Bridge: This is used to help censored users to connect to the Tor network.
-This is the most basic resource and we prevent to build it in such a fashion:
+This is the most basic resource and we foresee to build it in such a fashion:
 We will run obfs4proxy image in a pod container and automatically edit the configuration
 inside the container to run the bridge:
 
