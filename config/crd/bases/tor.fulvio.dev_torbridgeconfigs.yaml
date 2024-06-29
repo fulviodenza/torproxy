@@ -51,6 +51,10 @@ spec:
                 type: string
               orPort:
                 type: integer
+              originPort:
+                type: integer
+              redirectPort:
+                type: integer
               relayType:
                 type: string
               serverTransportListenAddr:

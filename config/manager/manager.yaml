@@ -63,7 +63,7 @@ spec:
         args:
           - --leader-elect
           - --health-probe-bind-address=:8081
-        image: torproxy-controller:latest
+        image: registry.local/torproxy-controller:latest
         name: manager
         securityContext:
           allowPrivilegeEscalation: false

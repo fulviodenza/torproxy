@@ -29,7 +29,7 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 	}
 
 	podList := &corev1.PodList{}
-	if err := r.List(ctx, podList, client.InNamespace(req.Namespace)); err != nil {
+	if err := r.List(ctx, podList, client.InNamespace(req.Namespace), client.MatchingLabels{"tor": "hide-me"}); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -39,26 +39,11 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 		if !hasTorContainer(pod) {
 			log.Info("Adding Tor container", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
 
-			torContainer := corev1.Container{
-				Name:  "tor-bridge",
-				Image: torBridgeConfig.Spec.Image,
-				Command: []string{"sh", "-c", fmt.Sprintf(`
-                    echo '%s' > /etc/tor/torrc
-                    tor -f /etc/tor/torrc
-                `, torrc)},
-				Ports: []corev1.ContainerPort{
-					{
-						ContainerPort: int32(torBridgeConfig.Spec.OrPort),
-						Protocol:      corev1.ProtocolTCP,
-					},
-					{
-						ContainerPort: int32(torBridgeConfig.Spec.DirPort),
-						Protocol:      corev1.ProtocolTCP,
-					},
-				},
-			}
+			torContainer := makeSidecarContainer(torBridgeConfig.Spec.Image, torrc, torBridgeConfig.Spec.OrPort, torBridgeConfig.Spec.DirPort)
 
-			pod.Spec.Containers = append(pod.Spec.Containers, torContainer)
+			sidecarContainer := makeIPTablesContainer(torBridgeConfig.Spec.RedirectPort, torBridgeConfig.Spec.OriginPort)
+
+			pod.Spec.Containers = append(pod.Spec.Containers, *torContainer, *sidecarContainer)
 
 			if err := r.Update(ctx, &pod); err != nil {
 				return reconcile.Result{}, err
@@ -67,6 +52,47 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// TODO: instead of this we should evaluate
+// the use of eBPF or https://pkg.go.dev/k8s.io/kubernetes/pkg/util/iptables
+// the first is way more efficient but will be way more complex too
+// the second is the implementation from kubernetes, that could actually
+// be enough
+func makeIPTablesContainer(redirectPort, originPort int) *corev1.Container {
+	return &corev1.Container{
+		Name:  "iptables-setup",
+		Image: "alpine",
+		Command: []string{"sh", "-c", fmt.Sprintf(`
+			iptables -t nat -A PREROUTING -p tcp --dport %d -j REDIRECT --to-ports %d
+		`, originPort, redirectPort)},
+		SecurityContext: &corev1.SecurityContext{
+			Capabilities: &corev1.Capabilities{
+				Add: []corev1.Capability{"NET_ADMIN"},
+			},
+		},
+	}
+}
+
+func makeSidecarContainer(image, torrc string, orPort, dirPort int) *corev1.Container {
+	return &corev1.Container{
+		Name:  "tor-bridge",
+		Image: image,
+		Command: []string{"sh", "-c", fmt.Sprintf(`
+			echo '%s' > /etc/tor/torrc
+			tor -f /etc/tor/torrc
+		`, torrc)},
+		Ports: []corev1.ContainerPort{
+			{
+				ContainerPort: int32(orPort),
+				Protocol:      corev1.ProtocolTCP,
+			},
+			{
+				ContainerPort: int32(dirPort),
+				Protocol:      corev1.ProtocolTCP,
+			},
+		},
+	}
 }
 
 func (r *TorBridgeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
