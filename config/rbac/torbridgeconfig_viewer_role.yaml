@@ -1,16 +1,16 @@
-# permissions for end users to view TorBridgeConfigs.
+# permissions for end users to view torbridgeconfigs.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/name: torproxy
     app.kubernetes.io/managed-by: kustomize
-  name: TorBridgeConfig-viewer-role
+  name: torbridgeconfig-viewer-role
 rules:
 - apiGroups:
   - tor.fulvio.dev
   resources:
-  - TorBridgeConfigs
+  - torbridgeconfigs
   verbs:
   - get
   - list
@@ -18,6 +18,6 @@ rules:
 - apiGroups:
   - tor.fulvio.dev
   resources:
-  - TorBridgeConfigs/status
+  - torbridgeconfigs/status
   verbs:
   - get

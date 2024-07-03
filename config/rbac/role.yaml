@@ -1,56 +1,20 @@
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  labels:
+    app.kubernetes.io/name: torproxy
+    app.kubernetes.io/managed-by: kustomize
   name: manager-role
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - tor.fulvio.dev
-  resources:
-  - tornetworkconfigs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - tor.fulvio.dev
-  resources:
-  - tornetworkconfigs/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - tor.fulvio.dev
-  resources:
-  - tornetworkconfigs/status
-  verbs:
-  - get
-  - patch
-  - update
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["tor.fulvio.dev"]
+  resources: ["torbridgeconfigs"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["tor.fulvio.dev"]
+  resources: ["torbridgeconfigs/status"]
+  verbs: ["get", "update", "patch"]
+- apiGroups: ["tor.fulvio.dev"]
+  resources: ["torbridgeconfigs/finalizers"]
+  verbs: ["update"]

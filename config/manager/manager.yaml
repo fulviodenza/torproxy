@@ -63,7 +63,7 @@ spec:
         args:
           - --leader-elect
           - --health-probe-bind-address=:8081
-        image: registry.local/torproxy-controller:latest
+        image: fulviodenza/torproxy:latest
         name: manager
         securityContext:
           allowPrivilegeEscalation: false

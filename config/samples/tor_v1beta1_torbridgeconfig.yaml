@@ -1,9 +1,9 @@
-apiVersion: tor.fulvio.dev/v1alpha1
+apiVersion: tor.fulvio.dev/v1beta1
 kind: TorBridgeConfig
 metadata:
   labels:
     app.kubernetes.io/name: torproxy
     app.kubernetes.io/managed-by: kustomize
-  name: TorBridgeConfig-sample
+  name: torbridgeconfig-sample
 spec:
   # TODO(user): Add fields here

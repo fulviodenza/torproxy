@@ -14,7 +14,7 @@ spec:
     singular: torbridgeconfig
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: TorBridgeConfig is the Schema for the TorBridgeConfigs API

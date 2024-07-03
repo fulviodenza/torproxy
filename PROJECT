@@ -14,16 +14,7 @@ resources:
   controller: true
   domain: fulvio.dev
   group: tor
-  kind: TorNetworkConfig
-  path: github.com/fulviodenza/torproxy/api/v1alpha1
-  version: v1alpha1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: fulvio.dev
-  group: tor
   kind: TorBridgeConfig
-  path: github.com/fulviodenza/torproxy/api/v1alpha1
-  version: v1alpha1
+  path: github.com/fulviodenza/torproxy/api/v1beta1
+  version: v1beta1
 version: "3"

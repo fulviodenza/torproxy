@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	torv1alpha1 "github.com/fulviodenza/torproxy/api/v1alpha1"
+	torv1beta1 "github.com/fulviodenza/torproxy/api/v1beta1"
 )
 
 var _ = Describe("TorBridgeConfig Controller", func() {
@@ -38,26 +38,28 @@ var _ = Describe("TorBridgeConfig Controller", func() {
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default",
+			Namespace: "default", // TODO(user):Modify as needed
 		}
-		TorBridgeConfig := &torv1alpha1.TorBridgeConfig{}
+		torbridgeconfig := &torv1beta1.TorBridgeConfig{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind TorBridgeConfig")
-			err := k8sClient.Get(ctx, typeNamespacedName, TorBridgeConfig)
+			err := k8sClient.Get(ctx, typeNamespacedName, torbridgeconfig)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &torv1alpha1.TorBridgeConfig{
+				resource := &torv1beta1.TorBridgeConfig{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
 					},
+					// TODO(user): Specify other spec details if needed.
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
 
 		AfterEach(func() {
-			resource := &torv1alpha1.TorBridgeConfig{}
+			// TODO(user): Cleanup logic after each test, like removing the resource instance.
+			resource := &torv1beta1.TorBridgeConfig{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -75,6 +77,8 @@ var _ = Describe("TorBridgeConfig Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
+			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
+			// Example: If you expect a certain status condition after reconciliation, verify it here.
 		})
 	})
 })

@@ -34,7 +34,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	torv1alpha1 "github.com/fulviodenza/torproxy/api/v1alpha1"
+	torv1beta1 "github.com/fulviodenza/torproxy/api/v1beta1"
 	"github.com/fulviodenza/torproxy/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
@@ -47,7 +47,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(torv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(torv1beta1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -105,7 +105,7 @@ func main() {
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "023d6886.fulvio.dev",
+		LeaderElectionID:       "d8c7a289.fulvio.dev",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -123,13 +123,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.TorNetworkConfigReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "TorNetworkConfig")
-		os.Exit(1)
-	}
 	if err = (&controller.TorBridgeConfigReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),

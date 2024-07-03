@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fulviodenza/torproxy/api/v1alpha1"
+	"github.com/fulviodenza/torproxy/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -19,10 +19,13 @@ type TorBridgeConfigReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+// +kubebuilder:rbac:groups=tor.fulvio.dev,resources=torbridgeconfigs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=tor.fulvio.dev,resources=torbridgeconfigs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=tor.fulvio.dev,resources=torbridgeconfigs/finalizers,verbs=update
 func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := log.FromContext(ctx)
 
-	torBridgeConfig := &v1alpha1.TorBridgeConfig{}
+	torBridgeConfig := &v1beta1.TorBridgeConfig{}
 	err := r.Get(ctx, req.NamespacedName, torBridgeConfig)
 	if err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
@@ -97,7 +100,7 @@ func makeSidecarContainer(image, torrc string, orPort, dirPort int) *corev1.Cont
 
 func (r *TorBridgeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.TorBridgeConfig{}).
+		For(&v1beta1.TorBridgeConfig{}).
 		Owns(&corev1.Pod{}).
 		Complete(r)
 }
@@ -111,7 +114,7 @@ func hasTorContainer(pod corev1.Pod) bool {
 	return false
 }
 
-func generateTorrc(spec v1alpha1.TorBridgeConfigSpec) string {
+func generateTorrc(spec v1beta1.TorBridgeConfigSpec) string {
 	var sb strings.Builder
 
 	sb.WriteString("Log notice stdout\n")

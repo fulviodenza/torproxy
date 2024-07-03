@@ -1,16 +1,16 @@
-# permissions for end users to edit TorBridgeConfigs.
+# permissions for end users to edit torbridgeconfigs.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/name: torproxy
     app.kubernetes.io/managed-by: kustomize
-  name: TorBridgeConfig-editor-role
+  name: torbridgeconfig-editor-role
 rules:
 - apiGroups:
   - tor.fulvio.dev
   resources:
-  - TorBridgeConfigs
+  - torbridgeconfigs
   verbs:
   - create
   - delete
@@ -22,6 +22,6 @@ rules:
 - apiGroups:
   - tor.fulvio.dev
   resources:
-  - TorBridgeConfigs/status
+  - torbridgeconfigs/status
   verbs:
   - get
