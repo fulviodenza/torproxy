@@ -11,6 +11,7 @@ type TorBridgeConfigSpec struct {
 	RelayType                 RelayType `json:"relayType,omitempty"`
 	OrPort                    int       `json:"orPort,omitempty"`
 	DirPort                   int       `json:"dirPort,omitempty"`
+	SOCKSPort                 int       `json:"socksPort,omitempty"`
 	Image                     string    `json:"image,omitempty"`
 	ContactInfo               string    `json:"contactInfo,omitempty"`
 	Nickname                  string    `json:"nickname,omitempty"`

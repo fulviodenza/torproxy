@@ -48,7 +48,12 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 				return reconcile.Result{}, err
 			}
 
-			newPod := createPodWithSidecar(pod, torBridgeConfig.Spec.Image, torrc, torBridgeConfig.Spec.OrPort, torBridgeConfig.Spec.DirPort)
+			// at this point we need to check that the pod traffic is
+			// actually hidden under tor:
+			// apt-get update && apt-get install -y curl
+			// curl https://check.torproject.org
+			// curl https://icanhazip.com
+			newPod := createPodWithSidecar(pod, torBridgeConfig.Spec.Image, torrc, torBridgeConfig.Spec.OrPort, torBridgeConfig.Spec.DirPort, torBridgeConfig.Spec.SOCKSPort)
 			log.Info("Creating new pod", "newPod.Name", newPod.Name, "newPod.Namespace", newPod.Namespace)
 			if err = r.Create(ctx, newPod); err != nil {
 				return reconcile.Result{}, err
@@ -59,7 +64,7 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 	return reconcile.Result{}, nil
 }
 
-func createPodWithSidecar(pod corev1.Pod, image, torrc string, orPort, dirPort int) *corev1.Pod {
+func createPodWithSidecar(pod corev1.Pod, image, torrc string, orPort, dirPort, SOCKSPort int) *corev1.Pod {
 	newPod := &corev1.Pod{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%s", pod.Name, "hidden"),
@@ -68,7 +73,22 @@ func createPodWithSidecar(pod corev1.Pod, image, torrc string, orPort, dirPort i
 	}
 	newPod.Spec = *pod.Spec.DeepCopy()
 
-	sidecarContainer := makeSidecarContainer(image, torrc, orPort, dirPort)
+	for i, container := range newPod.Spec.Containers {
+		if container.Name != "tor-bridge" {
+			newPod.Spec.Containers[i].Env = append(newPod.Spec.Containers[i].Env, corev1.EnvVar{
+				Name:  "http_proxy",
+				Value: fmt.Sprintf("socks5://127.0.0.1:%d", SOCKSPort),
+			}, corev1.EnvVar{
+				Name:  "https_proxy",
+				Value: fmt.Sprintf("socks5://127.0.0.1:%d", SOCKSPort),
+			}, corev1.EnvVar{
+				Name:  "all_proxy",
+				Value: fmt.Sprintf("socks5://127.0.0.1:%d", SOCKSPort),
+			})
+		}
+	}
+
+	sidecarContainer := makeSidecarContainer(image, torrc, orPort, dirPort, SOCKSPort)
 	newPod.Spec.Containers = append(newPod.Spec.Containers, *sidecarContainer)
 
 	return newPod
@@ -83,7 +103,7 @@ func hasTorSidecarContainer(pod corev1.Pod) bool {
 	return false
 }
 
-func makeSidecarContainer(image, torrc string, orPort, dirPort int) *corev1.Container {
+func makeSidecarContainer(image, torrc string, orPort, dirPort, SOCKSPort int) *corev1.Container {
 	return &corev1.Container{
 		Name:  "tor-bridge",
 		Image: image,
@@ -98,6 +118,10 @@ func makeSidecarContainer(image, torrc string, orPort, dirPort int) *corev1.Cont
 			},
 			{
 				ContainerPort: int32(dirPort),
+				Protocol:      corev1.ProtocolTCP,
+			},
+			{
+				ContainerPort: int32(SOCKSPort),
 				Protocol:      corev1.ProtocolTCP,
 			},
 		},
@@ -119,6 +143,9 @@ func generateTorrc(spec v1beta1.TorBridgeConfigSpec) string {
 	sb.WriteString(fmt.Sprintf("ORPort %d\n", spec.OrPort))
 	if spec.DirPort != 0 {
 		sb.WriteString(fmt.Sprintf("DirPort %d\n", spec.DirPort))
+	}
+	if spec.SOCKSPort != 0 {
+		sb.WriteString(fmt.Sprintf("SOCKSPort 0.0.0.0:%d\n", spec.SOCKSPort))
 	}
 	if spec.RelayType == "bridge" {
 		sb.WriteString("BridgeRelay 1\n")

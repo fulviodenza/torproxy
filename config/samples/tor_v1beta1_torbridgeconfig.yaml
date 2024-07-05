@@ -6,9 +6,13 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: torbridgeconfig-sample
 spec:
+  relayType: bridge
   orPort: 9001
   dirPort: 9030
+  socksPort: 9050
   serverTransportListenAddr: "obfs4 exec /usr/bin/obfs4proxy"
   serverTransportListenAddr: "obfs4 0.0.0.0:9050"
   extOrPort: auto
   image: dperson/torproxy
+  nickname: torpod1
+  contactInfo: noinfo@email.com

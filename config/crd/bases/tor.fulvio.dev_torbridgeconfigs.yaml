@@ -61,6 +61,8 @@ spec:
                 type: string
               serverTransportPlugin:
                 type: string
+              socksPort:
+                type: integer
             type: object
           status:
             description: TorBridgeConfigStatus defines the observed state of TorBridgeConfig
