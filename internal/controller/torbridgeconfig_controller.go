@@ -147,10 +147,9 @@ func generateTorrc(spec v1beta1.TorBridgeConfigSpec) string {
 	if spec.SOCKSPort != 0 {
 		sb.WriteString(fmt.Sprintf("SOCKSPort 0.0.0.0:%d\n", spec.SOCKSPort))
 	}
-	if spec.RelayType == "bridge" {
-		sb.WriteString("BridgeRelay 1\n")
-		sb.WriteString("ExitPolicy reject *:*\n")
-	}
+	sb.WriteString("BridgeRelay 1\n")
+	sb.WriteString("ExitPolicy reject *:*\n")
+
 	if spec.ServerTransportPlugin != "" {
 		sb.WriteString(fmt.Sprintf("ServerTransportPlugin %s\n", spec.ServerTransportPlugin))
 	}

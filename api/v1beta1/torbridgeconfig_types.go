@@ -4,22 +4,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type RelayType string
-
 // TorBridgeConfigSpec defines the desired state of TorBridgeConfig
 type TorBridgeConfigSpec struct {
-	RelayType                 RelayType `json:"relayType,omitempty"`
-	OrPort                    int       `json:"orPort,omitempty"`
-	DirPort                   int       `json:"dirPort,omitempty"`
-	SOCKSPort                 int       `json:"socksPort,omitempty"`
-	Image                     string    `json:"image,omitempty"`
-	ContactInfo               string    `json:"contactInfo,omitempty"`
-	Nickname                  string    `json:"nickname,omitempty"`
-	ServerTransportPlugin     string    `json:"serverTransportPlugin,omitempty"`
-	ServerTransportListenAddr string    `json:"serverTransportListenAddr,omitempty"`
-	ExtOrPort                 string    `json:"extOrPort,omitempty"`
-	OriginPort                int       `json:"originPort,omitempty"`
-	RedirectPort              int       `json:"redirectPort,omitempty"`
+	OrPort                    int    `json:"orPort,omitempty"`
+	DirPort                   int    `json:"dirPort,omitempty"`
+	SOCKSPort                 int    `json:"socksPort,omitempty"`
+	Image                     string `json:"image,omitempty"`
+	ContactInfo               string `json:"contactInfo,omitempty"`
+	Nickname                  string `json:"nickname,omitempty"`
+	ServerTransportPlugin     string `json:"serverTransportPlugin,omitempty"`
+	ServerTransportListenAddr string `json:"serverTransportListenAddr,omitempty"`
+	ExtOrPort                 string `json:"extOrPort,omitempty"`
+	OriginPort                int    `json:"originPort,omitempty"`
+	RedirectPort              int    `json:"redirectPort,omitempty"`
 }
 
 // TorBridgeConfigStatus defines the observed state of TorBridgeConfig
