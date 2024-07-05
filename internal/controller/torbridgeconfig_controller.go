@@ -7,6 +7,7 @@ import (
 
 	"github.com/fulviodenza/torproxy/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,17 +42,14 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 	torrc := generateTorrc(torBridgeConfig.Spec)
 
 	for _, pod := range podList.Items {
-		if !hasTorInitContainer(pod) {
+		if !hasTorSidecarContainer(pod) {
 			log.Info("Deleting unhidden pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
 			if err := r.Delete(ctx, &pod); err != nil {
 				return reconcile.Result{}, err
 			}
-			newPod := pod.DeepCopy()
-			newPod.Name = fmt.Sprintf("%s-%s", pod.Name, "hidden")
-			newPod.ResourceVersion = ""
-			log.Info("Creating new pod:", "newPod.Name", newPod.Name, "newPod.Namespace", newPod.Namespace)
-			initContainer := makeSidecarContainer(torBridgeConfig.Spec.Image, torrc, torBridgeConfig.Spec.OrPort, torBridgeConfig.Spec.DirPort)
-			newPod.Spec.InitContainers = append(pod.Spec.InitContainers, *initContainer)
+
+			newPod := createPodWithSidecar(pod, torBridgeConfig.Spec.Image, torrc, torBridgeConfig.Spec.OrPort, torBridgeConfig.Spec.DirPort)
+			log.Info("Creating new pod", "newPod.Name", newPod.Name, "newPod.Namespace", newPod.Namespace)
 			if err = r.Create(ctx, newPod); err != nil {
 				return reconcile.Result{}, err
 			}
@@ -59,6 +57,30 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func createPodWithSidecar(pod corev1.Pod, image, torrc string, orPort, dirPort int) *corev1.Pod {
+	newPod := &corev1.Pod{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-%s", pod.Name, "hidden"),
+			Namespace: pod.Namespace,
+		},
+	}
+	newPod.Spec = *pod.Spec.DeepCopy()
+
+	sidecarContainer := makeSidecarContainer(image, torrc, orPort, dirPort)
+	newPod.Spec.Containers = append(newPod.Spec.Containers, *sidecarContainer)
+
+	return newPod
+}
+
+func hasTorSidecarContainer(pod corev1.Pod) bool {
+	for _, container := range pod.Spec.Containers {
+		if container.Name == "tor-bridge" {
+			return true
+		}
+	}
+	return false
 }
 
 func makeSidecarContainer(image, torrc string, orPort, dirPort int) *corev1.Container {
@@ -80,15 +102,6 @@ func makeSidecarContainer(image, torrc string, orPort, dirPort int) *corev1.Cont
 			},
 		},
 	}
-}
-
-func hasTorInitContainer(pod corev1.Pod) bool {
-	for _, container := range pod.Spec.InitContainers {
-		if container.Name == "tor-init" {
-			return true
-		}
-	}
-	return false
 }
 
 func (r *TorBridgeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
