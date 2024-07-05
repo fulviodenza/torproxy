@@ -1,9 +1,9 @@
 # torproxy
-// TODO(user): Add simple overview of use/purpose
+<img src="assets/torproxy.webp" alt="drawing" width="200"/>
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
-
+torproxy is a controller to enable tor utilities in your k8s cluster.
+So far is only available the `TorBridgeConfig` resource which enable a single desired pod to run over tor network.
 ## Getting Started
 
 ### Prerequisites
@@ -16,7 +16,7 @@
 **Build and push your image to the location specified by `IMG`:**
 
 ```sh
-make docker-build docker-push IMG=<some-registry>/torproxy:tag
+make docker-build docker-push IMG=fulviodenza/torproxy:latest
 ```
 
 **NOTE:** This image ought to be published in the personal registry you specified.
@@ -32,7 +32,7 @@ make install
 **Deploy the Manager to the cluster with the image specified by `IMG`:**
 
 ```sh
-make deploy IMG=<some-registry>/torproxy:tag
+make deploy IMG=fulviodenza/torproxy:tag
 ```
 
 > **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
@@ -73,7 +73,7 @@ Following are the steps to build the installer and distribute this project to us
 1. Build the installer for the image built and published in the registry:
 
 ```sh
-make build-installer IMG=<some-registry>/torproxy:tag
+make build-installer IMG=fulviodenza/torproxy:tag
 ```
 
 NOTE: The makefile target mentioned above generates an 'install.yaml'
@@ -90,7 +90,8 @@ kubectl apply -f https://raw.githubusercontent.com/<org>/torproxy/<tag or branch
 ```
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
+Contributions are very welcome although this project is still in wip.
+Issues, PRs and proposal are very welcome, if you want to get in touch with me to understand next steps in the project, contact me via Linkedin (the name is the nickname) or via <a href="t.me/sempronio18">Telegram</a>.
 
 **NOTE:** Run `make help` for more information on all potential `make` targets
 
@@ -111,4 +112,3 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
