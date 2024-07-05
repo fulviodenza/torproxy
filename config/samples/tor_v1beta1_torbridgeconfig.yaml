@@ -6,4 +6,9 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: torbridgeconfig-sample
 spec:
-  # TODO(user): Add fields here
+  orPort: 9001
+  dirPort: 9030
+  serverTransportListenAddr: "obfs4 exec /usr/bin/obfs4proxy"
+  serverTransportListenAddr: "obfs4 0.0.0.0:9050"
+  extOrPort: auto
+  image: dperson/torproxy

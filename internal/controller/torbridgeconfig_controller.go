@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -22,6 +23,7 @@ type TorBridgeConfigReconciler struct {
 // +kubebuilder:rbac:groups=tor.fulvio.dev,resources=torbridgeconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=tor.fulvio.dev,resources=torbridgeconfigs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=tor.fulvio.dev,resources=torbridgeconfigs/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update;patch
 func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := log.FromContext(ctx)
 
@@ -39,42 +41,24 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 	torrc := generateTorrc(torBridgeConfig.Spec)
 
 	for _, pod := range podList.Items {
-		if !hasTorContainer(pod) {
-			log.Info("Adding Tor container", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-
-			torContainer := makeSidecarContainer(torBridgeConfig.Spec.Image, torrc, torBridgeConfig.Spec.OrPort, torBridgeConfig.Spec.DirPort)
-
-			sidecarContainer := makeIPTablesContainer(torBridgeConfig.Spec.RedirectPort, torBridgeConfig.Spec.OriginPort)
-
-			pod.Spec.Containers = append(pod.Spec.Containers, *torContainer, *sidecarContainer)
-
-			if err := r.Update(ctx, &pod); err != nil {
+		if !hasTorInitContainer(pod) {
+			log.Info("Deleting unhidden pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+			if err := r.Delete(ctx, &pod); err != nil {
+				return reconcile.Result{}, err
+			}
+			newPod := pod.DeepCopy()
+			newPod.Name = fmt.Sprintf("%s-%s", pod.Name, "hidden")
+			newPod.ResourceVersion = ""
+			log.Info("Creating new pod:", "newPod.Name", newPod.Name, "newPod.Namespace", newPod.Namespace)
+			initContainer := makeSidecarContainer(torBridgeConfig.Spec.Image, torrc, torBridgeConfig.Spec.OrPort, torBridgeConfig.Spec.DirPort)
+			newPod.Spec.InitContainers = append(pod.Spec.InitContainers, *initContainer)
+			if err = r.Create(ctx, newPod); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
 	}
 
 	return reconcile.Result{}, nil
-}
-
-// TODO: instead of this we should evaluate
-// the use of eBPF or https://pkg.go.dev/k8s.io/kubernetes/pkg/util/iptables
-// the first is way more efficient but will be way more complex too
-// the second is the implementation from kubernetes, that could actually
-// be enough
-func makeIPTablesContainer(redirectPort, originPort int) *corev1.Container {
-	return &corev1.Container{
-		Name:  "iptables-setup",
-		Image: "alpine",
-		Command: []string{"sh", "-c", fmt.Sprintf(`
-			iptables -t nat -A PREROUTING -p tcp --dport %d -j REDIRECT --to-ports %d
-		`, originPort, redirectPort)},
-		SecurityContext: &corev1.SecurityContext{
-			Capabilities: &corev1.Capabilities{
-				Add: []corev1.Capability{"NET_ADMIN"},
-			},
-		},
-	}
 }
 
 func makeSidecarContainer(image, torrc string, orPort, dirPort int) *corev1.Container {
@@ -98,20 +82,21 @@ func makeSidecarContainer(image, torrc string, orPort, dirPort int) *corev1.Cont
 	}
 }
 
-func (r *TorBridgeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1beta1.TorBridgeConfig{}).
-		Owns(&corev1.Pod{}).
-		Complete(r)
-}
-
-func hasTorContainer(pod corev1.Pod) bool {
-	for _, container := range pod.Spec.Containers {
-		if container.Name == "tor-bridge" {
+func hasTorInitContainer(pod corev1.Pod) bool {
+	for _, container := range pod.Spec.InitContainers {
+		if container.Name == "tor-init" {
 			return true
 		}
 	}
 	return false
+}
+
+func (r *TorBridgeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&v1beta1.TorBridgeConfig{}).
+		Watches(&corev1.Pod{}, &handler.EnqueueRequestForObject{}).
+		Owns(&corev1.Pod{}).
+		Complete(r)
 }
 
 func generateTorrc(spec v1beta1.TorBridgeConfigSpec) string {
