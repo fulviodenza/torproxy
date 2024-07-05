@@ -4,6 +4,8 @@
 ## Description
 torproxy is a controller to enable tor utilities in your k8s cluster.
 So far is only available the `TorBridgeConfig` resource which enable a single desired pod to run over tor network.
+This is intended as proof of concept to check the feasibility of this  project.
+
 ## Getting Started
 
 ### Prerequisites
