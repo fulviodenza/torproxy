@@ -1,88 +1,121 @@
-/*
-Copyright 2024.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package controller
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"testing"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
+	"github.com/fulviodenza/torproxy/api/v1beta1"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	torv1beta1 "github.com/fulviodenza/torproxy/api/v1beta1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var _ = Describe("TorBridgeConfig Controller", func() {
-	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
+func TestTorBridgeConfigReconciler_Reconcile(t *testing.T) {
+	s := scheme.Scheme
+	if err := v1beta1.AddToScheme(s); err != nil {
+		t.Fatalf("Unable to add v1beta1 scheme: %v", err)
+	}
+	if err := corev1.AddToScheme(s); err != nil {
+		t.Fatalf("Unable to add corev1 scheme: %v", err)
+	}
 
-		ctx := context.Background()
+	torBridgeConfig := &v1beta1.TorBridgeConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-config",
+			Namespace: "default",
+		},
+		Spec: v1beta1.TorBridgeConfigSpec{
+			Image:     "tor-image",
+			OrPort:    9001,
+			DirPort:   9030,
+			SOCKSPort: 9050,
+		},
+	}
 
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
-		}
-		torbridgeconfig := &torv1beta1.TorBridgeConfig{}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "existing-pod",
+			Namespace: "default",
+			Labels: map[string]string{
+				"tor": "hide-me",
+			},
+		},
+	}
 
-		BeforeEach(func() {
-			By("creating the custom resource for the Kind TorBridgeConfig")
-			err := k8sClient.Get(ctx, typeNamespacedName, torbridgeconfig)
-			if err != nil && errors.IsNotFound(err) {
-				resource := &torv1beta1.TorBridgeConfig{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
-					},
-					Spec: torv1beta1.TorBridgeConfigSpec{
-						OrPort:  9001,
-						DirPort: 9030,
-						Image:   "example",
-					},
+	tests := []struct {
+		name                string
+		existingObjects     []runtime.Object
+		expectedPodCount    int
+		expectedPodName     string
+		expectedSidecarName string
+	}{
+		{
+			name:                "Reconcile deletes unhidden pod and creates new pod with sidecar",
+			existingObjects:     []runtime.Object{torBridgeConfig, pod},
+			expectedPodCount:    1,
+			expectedPodName:     "existing-pod-hidden-",
+			expectedSidecarName: "tor-bridge",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := fake.NewFakeClient(tt.existingObjects...)
+
+			reconciler := &TorBridgeConfigReconciler{
+				Client: fakeClient,
+				Scheme: s,
+			}
+
+			req := reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      "test-config",
+					Namespace: "default",
+				},
+			}
+
+			_, err := reconciler.Reconcile(context.Background(), req)
+			if err != nil {
+				t.Fatalf("Reconcile failed: %v", err)
+			}
+
+			podList := &corev1.PodList{}
+			if err := fakeClient.List(context.Background(), podList, client.InNamespace("default")); err != nil {
+				t.Fatalf("List pods failed: %v", err)
+			}
+
+			if len(podList.Items) != tt.expectedPodCount {
+				t.Fatalf("Expected %d pod(s), but found %d", tt.expectedPodCount, len(podList.Items))
+			}
+
+			newPod := podList.Items[0]
+			if !cmp.Equal(newPod.Name, tt.expectedPodName, cmpopts.EquateEmpty()) {
+				if after, found := strings.CutPrefix(newPod.Name, tt.expectedPodName); !found {
+					fmt.Println(after)
+					t.Errorf("Unexpected pod name: got %v, want prefix %v", newPod.Name, tt.expectedPodName)
 				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
-			}
-		})
-
-		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &torv1beta1.TorBridgeConfig{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Cleanup the specific resource instance TorBridgeConfig")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &TorBridgeConfigReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
 			}
 
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+			foundSidecar := false
+			for _, container := range newPod.Spec.Containers {
+				if container.Name == tt.expectedSidecarName {
+					foundSidecar = true
+					break
+				}
+			}
+
+			if !foundSidecar {
+				t.Errorf("Expected sidecar container %s not found in pod %s", tt.expectedSidecarName, newPod.Name)
+			}
 		})
-	})
-})
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/fulviodenza/torproxy/api/v1beta1"
+	"github.com/fulviodenza/torproxy/internal/utils"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -67,7 +68,7 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 func createPodWithSidecar(pod corev1.Pod, image, torrc string, orPort, dirPort, SOCKSPort int) *corev1.Pod {
 	newPod := &corev1.Pod{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", pod.Name, "hidden"),
+			Name:      fmt.Sprintf("%s-%s-%s", pod.Name, "hidden", utils.GenerateName()),
 			Namespace: pod.Namespace,
 		},
 	}
