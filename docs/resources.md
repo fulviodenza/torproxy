@@ -14,7 +14,6 @@ This configuration allow outgoing pod's traffic to be hidden over the tor networ
         app.kubernetes.io/managed-by: kustomize
     name: torbridgeconfig-sample
     spec:
-    relayType: bridge
     orPort: 9001
     dirPort: 9030
     socksPort: 9050
