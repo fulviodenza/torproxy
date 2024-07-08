@@ -80,7 +80,7 @@ func (r *TorBridgeConfigReconciler) handleControlledPod(ctx context.Context, pod
 	for _, o := range pod.OwnerReferences {
 		switch {
 		// it could make sense to create a controller
-		// for each resource to watch tests could
+		// for each resource to watch. Tests could
 		// scale very bad with this approach
 		case o.Kind == "Deployment":
 			r.handleDeployment(ctx, types.NamespacedName{

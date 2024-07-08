@@ -55,8 +55,6 @@ spec:
                 type: integer
               redirectPort:
                 type: integer
-              relayType:
-                type: string
               serverTransportListenAddr:
                 type: string
               serverTransportPlugin:
