@@ -168,14 +168,14 @@ func TestTorBridgeConfigReconciler_Reconcile(t *testing.T) {
 				}
 				foundTorContainer := false
 				for _, container := range newPod.Spec.Containers {
-					if container.Name == TorContainer {
+					if container.Name == TorContainerName {
 						foundTorContainer = true
 						break
 					}
 				}
 
 				if !foundTorContainer {
-					t.Errorf("Expected tor container %s not found in pod %s", TorContainer, newPod.Name)
+					t.Errorf("Expected tor container %s not found in pod %s", TorContainerName, newPod.Name)
 				}
 			}
 

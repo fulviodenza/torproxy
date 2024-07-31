@@ -4,6 +4,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const CleanupTorBridgeConfigFinalizer = "torbridgeconfig.torproxy/cleanup"
+
 // TorBridgeConfigSpec defines the desired state of TorBridgeConfig
 type TorBridgeConfigSpec struct {
 	OrPort                    int    `json:"orPort,omitempty"`

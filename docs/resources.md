@@ -17,7 +17,6 @@ This configuration allow outgoing pod's traffic to be hidden over the tor networ
     orPort: 9001
     dirPort: 9030
     socksPort: 9050
-    serverTransportListenAddr: "obfs4 exec /usr/bin/obfs4proxy"
     serverTransportListenAddr: "obfs4 0.0.0.0:9050"
     extOrPort: auto
     image: dperson/torproxy

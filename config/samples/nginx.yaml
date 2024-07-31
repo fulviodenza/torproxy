@@ -4,6 +4,8 @@ metadata:
   name: nginx-pod
   labels:
     tor: hide-me
+    tor-config-name: torbridgeconfig-sample
+    tor-config-namespace: default
 spec:
   containers:
   - name: nginx
