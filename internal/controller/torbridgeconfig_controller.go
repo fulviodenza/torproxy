@@ -7,6 +7,7 @@ import (
 
 	"github.com/fulviodenza/torproxy/api/v1beta1"
 	"github.com/fulviodenza/torproxy/internal/utils"
+	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,7 +33,10 @@ type TorBridgeConfigReconciler struct {
 // +kubebuilder:rbac:groups=tor.fulvio.dev,resources=torbridgeconfigs/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update;patch;delete;create
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;update;patch;delete;create
+// +kubebuilder:rbac:groups=apps,resources=replicaset,verbs=get;list;watch;update;patch;delete;create
 func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	log := log.FromContext(ctx)
+	log.Info("got new request: ", "namespace/name", req.NamespacedName.String())
 	torBridgeConfig := &v1beta1.TorBridgeConfig{}
 	err := r.Get(ctx, req.NamespacedName, torBridgeConfig)
 	if err != nil && !errors.IsNotFound(err) {
@@ -46,13 +50,13 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 		}
 
 		if torBridgeConfig.DeletionTimestamp != nil {
-			if err := r.unhandlePods(ctx, podList.Items); err != nil {
+			if err := r.unhandlePods(log, ctx, podList.Items); err != nil {
 				return reconcile.Result{}, err
 			}
 			return reconcile.Result{}, nil
 		}
 
-		if err := r.handlePods(ctx, podList.Items, *torBridgeConfig); err != nil {
+		if err := r.handlePods(log, ctx, podList.Items, *torBridgeConfig); err != nil {
 			return reconcile.Result{}, err
 		}
 		return reconcile.Result{}, nil
@@ -78,28 +82,27 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 			return reconcile.Result{}, err
 		}
 		if errors.IsNotFound(err) || torBridgeConfig.Name == "" {
-			if err := r.unhandlePod(ctx, *pod); err != nil {
+			if err := r.unhandlePod(log, ctx, *pod); err != nil {
 				return reconcile.Result{}, err
 			}
 			return reconcile.Result{}, nil
 		}
 
-		if err := r.handlePod(ctx, *pod, *torBridgeConfig); err != nil {
+		if err := r.handlePod(log, ctx, *pod, *torBridgeConfig); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 	return reconcile.Result{}, nil
 }
 
-func (r *TorBridgeConfigReconciler) unhandlePods(ctx context.Context, pods []corev1.Pod) error {
+func (r *TorBridgeConfigReconciler) unhandlePods(log logr.Logger, ctx context.Context, pods []corev1.Pod) error {
 	for _, p := range pods {
-		r.unhandlePod(ctx, p)
+		r.unhandlePod(log, ctx, p)
 	}
 	return nil
 }
 
-func (r *TorBridgeConfigReconciler) unhandlePod(ctx context.Context, pod corev1.Pod) error {
-	log := log.FromContext(ctx)
+func (r *TorBridgeConfigReconciler) unhandlePod(log logr.Logger, ctx context.Context, pod corev1.Pod) error {
 	switch {
 	case hasTorContainer(pod):
 		log.Info("Deleting unmanaged hidden pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
@@ -115,17 +118,16 @@ func (r *TorBridgeConfigReconciler) unhandlePod(ctx context.Context, pod corev1.
 	return nil
 }
 
-func (r *TorBridgeConfigReconciler) handlePods(ctx context.Context, pods []corev1.Pod, torBridgeConfig v1beta1.TorBridgeConfig) error {
+func (r *TorBridgeConfigReconciler) handlePods(log logr.Logger, ctx context.Context, pods []corev1.Pod, torBridgeConfig v1beta1.TorBridgeConfig) error {
 	for _, pod := range pods {
-		if err := r.handlePod(ctx, pod, torBridgeConfig); err != nil {
+		if err := r.handlePod(log, ctx, pod, torBridgeConfig); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (r *TorBridgeConfigReconciler) handlePod(ctx context.Context, pod corev1.Pod, torBridgeConfig v1beta1.TorBridgeConfig) error {
-	log := log.FromContext(ctx)
+func (r *TorBridgeConfigReconciler) handlePod(log logr.Logger, ctx context.Context, pod corev1.Pod, torBridgeConfig v1beta1.TorBridgeConfig) error {
 	if !hasTorContainer(pod) && pod.DeletionTimestamp == nil {
 		switch {
 		case len(pod.OwnerReferences) == 0:

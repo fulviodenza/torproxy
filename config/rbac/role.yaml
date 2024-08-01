@@ -10,7 +10,7 @@ rules:
   resources: ["pods"]
   verbs: ["create", "get", "list", "watch", "update", "delete"]
 - apiGroups: ["apps"]
-  resources: ["deployments"]
+  resources: ["deployments", "replicasets"]
   verbs: ["create", "get", "list", "watch", "update", "delete"]
 - apiGroups: ["tor.fulvio.dev"]
   resources: ["torbridgeconfigs"]
