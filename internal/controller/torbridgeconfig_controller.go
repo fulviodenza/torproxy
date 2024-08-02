@@ -145,7 +145,7 @@ func (r *TorBridgeConfigReconciler) handlePod(log logr.Logger, ctx context.Conte
 			if err != nil {
 				return err
 			}
-			r.handleControlledPod(ctx, pod, *torBridgeConfig)
+			return r.handleControlledPod(ctx, pod, *torBridgeConfig)
 		}
 	}
 	return nil
@@ -214,21 +214,22 @@ func createPodWithTorContainer(pod corev1.Pod, torBridgeConfig v1beta1.TorBridge
 	return newPod
 }
 
-func (r *TorBridgeConfigReconciler) handleControlledPod(ctx context.Context, pod corev1.Pod, torBridgeConfig v1beta1.TorBridgeConfig) {
+func (r *TorBridgeConfigReconciler) handleControlledPod(ctx context.Context, pod corev1.Pod, torBridgeConfig v1beta1.TorBridgeConfig) error {
 	for _, o := range pod.OwnerReferences {
 		switch {
 		case o.Kind == "Deployment":
-			r.handleDeployment(ctx, types.NamespacedName{
+			return r.handleDeployment(ctx, types.NamespacedName{
 				Name:      o.Name,
 				Namespace: pod.Namespace,
 			}, torBridgeConfig)
 		case o.Kind == "ReplicaSet":
-			r.handleReplicaSet(ctx, types.NamespacedName{
+			return r.handleReplicaSet(ctx, types.NamespacedName{
 				Name:      o.Name,
 				Namespace: pod.Namespace,
 			}, torBridgeConfig)
 		}
 	}
+	return nil
 }
 
 func (r *TorBridgeConfigReconciler) handleReplicaSet(ctx context.Context, ns types.NamespacedName, torBridgeConfig v1beta1.TorBridgeConfig) error {
@@ -237,12 +238,21 @@ func (r *TorBridgeConfigReconciler) handleReplicaSet(ctx context.Context, ns typ
 	if err != nil {
 		return err
 	}
-	newReplicaSet := replicaSet.DeepCopy()
 
-	torContainer := makeTorContainer(torBridgeConfig)
-	newReplicaSet.Spec.Template.Spec.Containers = append(newReplicaSet.Spec.Template.Spec.Containers, *torContainer)
-	newReplicaSet.Spec.Template.Name = fmt.Sprintf("%s-%s-%s", replicaSet.Name, "hidden", utils.GenerateName())
-	return r.Update(ctx, replicaSet)
+	controllerName := ""
+	for _, o := range replicaSet.OwnerReferences {
+		if o.Kind == "Deployment" {
+			controllerName = o.Name
+		}
+	}
+	return r.handleDeployment(ctx, types.NamespacedName{Namespace: replicaSet.Namespace, Name: controllerName}, torBridgeConfig)
+
+	// newReplicaSet := replicaSet.DeepCopy()
+
+	// torContainer := makeTorContainer(torBridgeConfig)
+	// newReplicaSet.Spec.Template.Spec.Containers = append(newReplicaSet.Spec.Template.Spec.Containers, *torContainer)
+	// newReplicaSet.Spec.Template.Name = fmt.Sprintf("%s-%s-%s", replicaSet.Name, "hidden", utils.GenerateName())
+	// return r.Update(ctx, replicaSet)
 }
 
 func (r *TorBridgeConfigReconciler) handleDeployment(ctx context.Context, ns types.NamespacedName, torBridgeConfig v1beta1.TorBridgeConfig) error {

@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    control-plane: controller-manager
+    app.kubernetes.io/name: torproxy
+    app.kubernetes.io/managed-by: kustomize
+  name: system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: torproxy-config
+  namespace: system
+data:
+  imageTag: "latest"
+  command: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+  labels:
+    control-plane: controller-manager
+    app.kubernetes.io/name: torproxy
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        control-plane: controller-manager
+    spec:
+      containers: 
+      - name: manager
+        env:
+        - name: IMAGE_TAG
+          valueFrom:
+            configMapKeyRef:
+              name: torproxy-config
+              key: imageTag
+        - name: COMMAND
+          valueFrom:
+            configMapKeyRef:
+              name: torproxy-config
+              key: command
+        image: fulviodenza/torproxy:debug
+        imagePullPolicy: Always
+        command:
+        - sh
+        - -c
+        - dlv exec /manager --headless=true --listen=:40000 --api-version=2 --accept-multiclient -- --leader-elect --health-probe-bind-address=:8081;
+        ports:
+        - containerPort: 40000
+          name: debug
+        securityContext:
+          runAsUser: 1001
+          runAsGroup: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - "ALL"
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 10m
+            memory: 256Mi
+      serviceAccountName: controller-manager
+      terminationGracePeriodSeconds: 10

@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-depl
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+        tor: hide-me
+        tor-config-name: torbridgeconfig-sample
+        tor-config-namespace: default
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/nginx/templates
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          envsubst '$HOSTNAME $POD_IP' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+          nginx -g 'daemon off;'
+      volumes:
+      - name: config-volume
+        configMap:
+          name: nginx-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  default.conf.template: |
+    server {
+      listen 80;
+      location / {
+        default_type text/plain;
+        return 200 "$host - $HOSTNAME - $POD_IP";
+        add_header Content-Type text/plain;
+      }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx-pod
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: NodePort
