@@ -1,4 +1,4 @@
-apiVersion: tor.fulvio.dev/v1beta1
+apiVersion: tor.stack.io/v1beta1
 kind: TorBridgeConfig
 metadata:
   labels:

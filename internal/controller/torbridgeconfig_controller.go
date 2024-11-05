@@ -28,9 +28,9 @@ type TorBridgeConfigReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=tor.fulvio.dev,resources=torbridgeconfigs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=tor.fulvio.dev,resources=torbridgeconfigs/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=tor.fulvio.dev,resources=torbridgeconfigs/finalizers,verbs=update
+// +kubebuilder:rbac:groups=tor.stack.io,resources=torbridgeconfigs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=tor.stack.io,resources=torbridgeconfigs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=tor.stack.io,resources=torbridgeconfigs/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update;patch;delete;create
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;update;patch;delete;create
 // +kubebuilder:rbac:groups=apps,resources=replicaset,verbs=get;list;watch;update;patch;delete;create
@@ -62,7 +62,8 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 		return reconcile.Result{}, nil
 	}
 
-	// error is not found
+	// if error is not found we need to look for the pods
+	// having the label "tor" and eventually inject the configuration
 	pod := &corev1.Pod{}
 	err = r.Get(ctx, req.NamespacedName, pod)
 	if err != nil && !errors.IsNotFound(err) {
@@ -267,7 +268,11 @@ func (r *TorBridgeConfigReconciler) handleDeployment(ctx context.Context, ns typ
 	torContainer := makeTorContainer(torBridgeConfig)
 	newDeployment.Spec.Template.Spec.Containers = append(newDeployment.Spec.Template.Spec.Containers, *torContainer)
 	newDeployment.Spec.Template.Name = fmt.Sprintf("%s-%s-%s", deployment.Name, "hidden", utils.GenerateName())
-	return r.Update(ctx, deployment)
+	err = r.Update(ctx, deployment)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func hasTorContainer(pod corev1.Pod) bool {
@@ -309,7 +314,6 @@ func (r *TorBridgeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1beta1.TorBridgeConfig{}).
 		Watches(&corev1.Pod{}, &handler.EnqueueRequestForObject{}).
-		Watches(&appsv1.Deployment{}, &handler.EnqueueRequestForObject{}).
 		Owns(&corev1.Pod{}).
 		Complete(r)
 }

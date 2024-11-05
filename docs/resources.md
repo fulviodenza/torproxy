@@ -6,7 +6,7 @@ So far it exists only one kind of resource since I was writing it as a POC:
 - `TorBridgeConfig`: this resource operates as a tor bridge.
 This configuration allow outgoing pod's traffic to be hidden over the tor network redeployng the same Pod with a container added. This container will be the tor-bridge configuration that will manage the hide of the outgoing traffic injecting a tor bridge configuration into the pod's filesystem.
     ```
-    apiVersion: tor.fulvio.dev/v1beta1
+    apiVersion: tor.stack.io/v1beta1
     kind: TorBridgeConfig
     metadata:
     labels:

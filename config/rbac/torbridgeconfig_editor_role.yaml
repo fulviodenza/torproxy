@@ -8,7 +8,7 @@ metadata:
   name: torbridgeconfig-editor-role
 rules:
 - apiGroups:
-  - tor.fulvio.dev
+  - tor.stack.io
   resources:
   - torbridgeconfigs
   verbs:
@@ -20,7 +20,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - tor.fulvio.dev
+  - tor.stack.io
   resources:
   - torbridgeconfigs/status
   verbs:
