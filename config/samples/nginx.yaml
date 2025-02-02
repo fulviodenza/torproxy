@@ -12,6 +12,13 @@ spec:
     image: nginx:latest
     ports:
     - containerPort: 80
+      protocol: TCP
+    - containerPort: 9050
+      protocol: TCP
+    - containerPort: 9030
+      protocol: TCP
+    - containerPort: 9001
+      protocol: TCP
     env:
     - name: HOSTNAME
       valueFrom:

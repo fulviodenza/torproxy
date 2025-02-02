@@ -12,7 +12,12 @@ require (
 	sigs.k8s.io/controller-runtime v0.18.2
 )
 
-require github.com/evanphx/json-patch v4.12.0+incompatible // indirect
+require (
+	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
+	github.com/gorilla/websocket v1.5.0 // indirect
+	github.com/moby/spdystream v0.2.0 // indirect
+	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
+)
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
