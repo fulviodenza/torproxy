@@ -21,3 +21,9 @@ rules:
 - apiGroups: ["tor.stack.io"]
   resources: ["torbridgeconfigs/finalizers"]
   verbs: ["update"]
+- apiGroups:
+    - ""
+  resources:
+    - pods/exec
+  verbs:
+    - create

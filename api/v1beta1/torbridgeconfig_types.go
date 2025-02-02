@@ -11,6 +11,7 @@ type TorBridgeConfigSpec struct {
 	OrPort                    int    `json:"orPort,omitempty"`
 	DirPort                   int    `json:"dirPort,omitempty"`
 	SOCKSPort                 int    `json:"socksPort,omitempty"`
+	Mode                      string `json:"mode,omitempty"`
 	Image                     string `json:"image,omitempty"`
 	ContactInfo               string `json:"contactInfo,omitempty"`
 	Nickname                  string `json:"nickname,omitempty"`
@@ -19,6 +20,7 @@ type TorBridgeConfigSpec struct {
 	ExtOrPort                 string `json:"extOrPort,omitempty"`
 	OriginPort                int    `json:"originPort,omitempty"`
 	RedirectPort              int    `json:"redirectPort,omitempty"`
+	ExitRelay                 bool   `json:"exitRelay,omitempty"`
 }
 
 // TorBridgeConfigStatus defines the observed state of TorBridgeConfig

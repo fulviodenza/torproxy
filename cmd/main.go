@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	torv1beta1 "github.com/fulviodenza/torproxy/api/v1beta1"
-	"github.com/fulviodenza/torproxy/internal/controller"
+	controller "github.com/fulviodenza/torproxy/controllers/torbridgeconfig"
 	// +kubebuilder:scaffold:imports
 )
 

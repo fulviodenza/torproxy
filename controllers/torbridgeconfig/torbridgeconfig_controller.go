@@ -1,12 +1,13 @@
-package controller
+package controllers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
 
 	"github.com/fulviodenza/torproxy/api/v1beta1"
-	"github.com/fulviodenza/torproxy/internal/utils"
+	"github.com/fulviodenza/torproxy/controllers/utils"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -14,8 +15,11 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/remotecommand"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -32,6 +36,7 @@ type TorBridgeConfigReconciler struct {
 // +kubebuilder:rbac:groups=tor.stack.io,resources=torbridgeconfigs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=tor.stack.io,resources=torbridgeconfigs/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update;patch;delete;create
+// +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;update;patch;delete;create
 // +kubebuilder:rbac:groups=apps,resources=replicaset,verbs=get;list;watch;update;patch;delete;create
 func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -141,14 +146,67 @@ func (r *TorBridgeConfigReconciler) handlePod(log logr.Logger, ctx context.Conte
 			if err := r.Create(ctx, newPod); err != nil {
 				return err
 			}
+			// Log the Onion address for the new Pod
+			return r.getOnionAddress(log, ctx, *newPod)
 		case len(pod.OwnerReferences) != 0:
 			torBridgeConfig, err := r.getTorBridgeConfigFromPod(ctx, pod)
 			if err != nil {
 				return err
 			}
-			return r.handleControlledPod(ctx, pod, *torBridgeConfig)
+			if err := r.handleControlledPod(ctx, pod, *torBridgeConfig); err != nil {
+				return err
+			}
+			// Log the Onion address for the controlled Pod
+			return r.getOnionAddress(log, ctx, pod)
 		}
 	}
+	return nil
+}
+
+// Function to retrieve the Onion service address
+func (r *TorBridgeConfigReconciler) getOnionAddress(log logr.Logger, ctx context.Context, pod corev1.Pod) error {
+	// Set up the Kubernetes client configuration
+	kubeconfig := config.GetConfigOrDie()
+	clientset, err := kubernetes.NewForConfig(kubeconfig)
+	if err != nil {
+		log.Error(err, "Failed to create Kubernetes client")
+		return err
+	}
+
+	// Prepare the exec command to read the Onion address from /var/lib/tor/hidden_service/hostname
+	req := clientset.CoreV1().RESTClient().
+		Post().
+		Resource("pods").
+		Name(pod.Name).
+		Namespace(pod.Namespace).
+		SubResource("exec").
+		Param("container", "tor-bridge"). // Ensure this matches the Tor container name in your Pod spec
+		Param("command", "cat").
+		Param("command", "/var/lib/tor/hidden_service/hostname").
+		Param("stderr", "true").
+		Param("stdout", "true")
+
+	// Set up the executor
+	exec, err := remotecommand.NewSPDYExecutor(kubeconfig, "POST", req.URL())
+	if err != nil {
+		log.Error(err, "Failed to initialize SPDY executor")
+		return err
+	}
+
+	// Capture the output in a buffer
+	var stdout, stderr bytes.Buffer
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdout: &stdout,
+		Stderr: &stderr,
+	})
+	if err != nil {
+		log.Error(err, "Failed to exec command in pod", "stderr", stderr.String())
+		return err
+	}
+
+	// Log the Onion address
+	onionAddress := stdout.String()
+	log.Info("Onion service address", "address", onionAddress)
 	return nil
 }
 
@@ -285,7 +343,7 @@ func hasTorContainer(pod corev1.Pod) bool {
 }
 
 func makeTorContainer(torBridgeConfig v1beta1.TorBridgeConfig) *corev1.Container {
-	torrc := generateTorrc(torBridgeConfig.Spec)
+	torrc := generateTorrc(torBridgeConfig)
 	return &corev1.Container{
 		Name:  TorContainerName,
 		Image: torBridgeConfig.Spec.Image,
@@ -318,34 +376,133 @@ func (r *TorBridgeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func generateTorrc(spec v1beta1.TorBridgeConfigSpec) string {
+// Service for bridge configuration
+//
+// apiVersion: v1
+// kind: Service
+// metadata:
+//   name: tor-bridge-service
+//   namespace: <namespace>
+// spec:
+//   selector:
+//     app: tor-bridge
+//   ports:
+//     - protocol: TCP
+//       port: <external-port>       # External port to connect to
+//       targetPort: <orport>        # Internal port the Tor bridge is listening on
+//   type: ClusterIP  # Or LoadBalancer/NodePort if you need external access
+
+// Service for Hidden Service configuration
+//
+// apiVersion: v1
+// kind: Service
+// metadata:
+//   name: hidden-service-backend
+//   namespace: <namespace>
+// spec:
+//   selector:
+//     app: hidden-service
+//   ports:
+//     - protocol: TCP
+//       port: 80
+//       targetPort: <app-port>   # The internal port for the backend application
+//   type: ClusterIP
+
+// Service for Relay Configuration
+//
+// apiVersion: v1
+// kind: Service
+// metadata:
+//   name: tor-relay-service
+//   namespace: <namespace>
+// spec:
+//   selector:
+//     app: tor-relay
+//   ports:
+//     - protocol: TCP
+//       port: <external-orport>        # External port for ORPort
+//       targetPort: <orport>           # Internal port for ORPort
+//     - protocol: TCP
+//       port: <external-dirport>       # External port for DirPort (if used)
+//       targetPort: <dirport>          # Internal port for DirPort
+//   type: LoadBalancer  # Can also be NodePort if LoadBalancer is unavailable
+
+func generateTorrc(torConfig v1beta1.TorBridgeConfig) string {
 	var sb strings.Builder
 
 	sb.WriteString("Log notice stdout\n")
-	sb.WriteString(fmt.Sprintf("ORPort %d\n", spec.OrPort))
-	if spec.DirPort != 0 {
-		sb.WriteString(fmt.Sprintf("DirPort %d\n", spec.DirPort))
-	}
-	if spec.SOCKSPort != 0 {
-		sb.WriteString(fmt.Sprintf("SOCKSPort 0.0.0.0:%d\n", spec.SOCKSPort))
-	}
-	sb.WriteString("BridgeRelay 1\n")
-	sb.WriteString("ExitPolicy reject *:*\n")
 
-	if spec.ServerTransportPlugin != "" {
-		sb.WriteString(fmt.Sprintf("ServerTransportPlugin %s\n", spec.ServerTransportPlugin))
-	}
-	if spec.ServerTransportListenAddr != "" {
-		sb.WriteString(fmt.Sprintf("ServerTransportListenAddr %s\n", spec.ServerTransportListenAddr))
-	}
-	if spec.ExtOrPort != "" {
-		sb.WriteString(fmt.Sprintf("ExtORPort %s\n", spec.ExtOrPort))
-	}
-	if spec.ContactInfo != "" {
-		sb.WriteString(fmt.Sprintf("ContactInfo %s\n", spec.ContactInfo))
-	}
-	if spec.Nickname != "" {
-		sb.WriteString(fmt.Sprintf("Nickname %s\n", spec.Nickname))
+	switch torConfig.Spec.Mode {
+	case "bridge":
+		// Bridge configuration
+		sb.WriteString("BridgeRelay 1\n")
+		sb.WriteString(fmt.Sprintf("ORPort %d\n", torConfig.Spec.OrPort))
+		sb.WriteString(fmt.Sprintf("SOCKSPort 127.0.0.1:%d\n", torConfig.Spec.SOCKSPort)) // Local access only
+
+		if torConfig.Spec.ServerTransportPlugin != "" {
+			sb.WriteString(fmt.Sprintf("ServerTransportPlugin %s\n", torConfig.Spec.ServerTransportPlugin))
+		}
+		if torConfig.Spec.ServerTransportListenAddr != "" {
+			sb.WriteString(fmt.Sprintf("ServerTransportListenAddr %s\n", torConfig.Spec.ServerTransportListenAddr))
+		}
+
+		if torConfig.Spec.ExtOrPort != "" {
+			sb.WriteString(fmt.Sprintf("ExtORPort %s\n", torConfig.Spec.ExtOrPort))
+		}
+
+		if torConfig.Spec.ContactInfo != "" {
+			sb.WriteString(fmt.Sprintf("ContactInfo %s\n", torConfig.Spec.ContactInfo))
+		}
+
+		if torConfig.Spec.Nickname != "" {
+			sb.WriteString(fmt.Sprintf("Nickname %s\n", torConfig.Spec.Nickname))
+		}
+
+	case "hidden_service":
+		// Hidden Service configuration
+		sb.WriteString("HiddenServiceDir /var/lib/tor/hidden_service/\n")
+		sb.WriteString(fmt.Sprintf("HiddenServicePort %d 127.0.0.1:%d\n", 80, torConfig.Spec.OrPort))
+
+		sb.WriteString(fmt.Sprintf("SOCKSPort 127.0.0.1:%d\n", torConfig.Spec.SOCKSPort)) // Only localhost access
+
+		if torConfig.Spec.ContactInfo != "" {
+			sb.WriteString(fmt.Sprintf("ContactInfo %s\n", torConfig.Spec.ContactInfo))
+		}
+
+		if torConfig.Spec.Nickname != "" {
+			sb.WriteString(fmt.Sprintf("Nickname %s\n", torConfig.Spec.Nickname))
+		}
+
+	case "relay":
+		// Relay configuration
+		sb.WriteString(fmt.Sprintf("ORPort %d\n", torConfig.Spec.OrPort))
+
+		if torConfig.Spec.DirPort != 0 {
+			sb.WriteString(fmt.Sprintf("DirPort %d\n", torConfig.Spec.DirPort))
+		}
+
+		sb.WriteString(fmt.Sprintf("SOCKSPort 127.0.0.1:%d\n", torConfig.Spec.SOCKSPort)) // Only localhost access
+
+		if torConfig.Spec.ExtOrPort != "" {
+			sb.WriteString(fmt.Sprintf("ExtORPort %s\n", torConfig.Spec.ExtOrPort))
+		}
+
+		if torConfig.Spec.ContactInfo != "" {
+			sb.WriteString(fmt.Sprintf("ContactInfo %s\n", torConfig.Spec.ContactInfo))
+		}
+
+		if torConfig.Spec.Nickname != "" {
+			sb.WriteString(fmt.Sprintf("Nickname %s\n", torConfig.Spec.Nickname))
+		}
+
+		if torConfig.Spec.ExitRelay {
+			sb.WriteString("ExitRelay 1\n")
+		} else {
+			sb.WriteString("ExitRelay 0\n")
+		}
+	default:
+		// Default behavior or error
+		sb.WriteString("Invalid mode specified\n")
 	}
 
 	return sb.String()
