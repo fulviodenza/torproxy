@@ -1,16 +1,17 @@
 apiVersion: tor.stack.io/v1beta1
 kind: TorBridgeConfig
 metadata:
+  name: torbridgeconfig-sample
   labels:
     app.kubernetes.io/name: torproxy
     app.kubernetes.io/managed-by: kustomize
-  name: torbridgeconfig-sample
 spec:
   orPort: 9001
   dirPort: 9030
   socksPort: 9050
-  serverTransportListenAddr: "obfs4 0.0.0.0:9050"
+  serverTransportListenAddr: "obfs4 0.0.0.0:9051"
   extOrPort: auto
   image: dperson/torproxy
   nickname: torpod1
   contactInfo: noinfo@email.com
+

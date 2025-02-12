@@ -6,12 +6,35 @@ metadata:
     tor: hide-me
     tor-config-name: torbridgeconfig-sample
     tor-config-namespace: default
+    app: nginx-hidden
+    component: web
 spec:
   containers:
   - name: nginx
     image: nginx:latest
     ports:
     - containerPort: 80
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: 101
+    ports:
+    - containerPort: 80
+      protocol: TCP
+    - containerPort: 9050
+      protocol: TCP
+    - containerPort: 9030
+      protocol: TCP
+    - containerPort: 9001
+      protocol: TCP
     env:
     - name: HOSTNAME
       valueFrom:
@@ -34,6 +57,9 @@ spec:
   - name: config-volume
     configMap:
       name: nginx-config
+  - name: tmp
+    emptyDir: {}
+
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -56,7 +82,7 @@ metadata:
   name: nginx-service
 spec:
   selector:
-    app: nginx-pod
+    tor: hide-me
   ports:
     - protocol: TCP
       port: 80

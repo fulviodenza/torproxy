@@ -1,20 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx-depl
-  namespace: default
+  name: nginx-hidden
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      app: nginx
+      tor: hide-me
+      app: nginx-hidden
   template:
     metadata:
       labels:
-        app: nginx
         tor: hide-me
         tor-config-name: torbridgeconfig-sample
         tor-config-namespace: default
+        app: nginx-hidden
+        component: web
     spec:
       containers:
       - name: nginx
