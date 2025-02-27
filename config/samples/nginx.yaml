@@ -12,8 +12,6 @@ spec:
   containers:
   - name: nginx
     image: nginx:latest
-    ports:
-    - containerPort: 80
     resources:
       requests:
         memory: "64Mi"
@@ -21,11 +19,6 @@ spec:
       limits:
         memory: "128Mi"
         cpu: "500m"
-    securityContext:
-      readOnlyRootFilesystem: true
-      allowPrivilegeEscalation: false
-      runAsNonRoot: true
-      runAsUser: 101
     ports:
     - containerPort: 80
       protocol: TCP
@@ -87,4 +80,4 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 80
-  type: NodePort
+  type: ClusterIP

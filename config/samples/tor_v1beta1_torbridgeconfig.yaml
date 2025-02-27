@@ -6,12 +6,10 @@ metadata:
     app.kubernetes.io/name: torproxy
     app.kubernetes.io/managed-by: kustomize
 spec:
+  image: dperson/torproxy
   orPort: 9001
   dirPort: 9030
   socksPort: 9050
-  serverTransportListenAddr: "obfs4 0.0.0.0:9051"
-  extOrPort: auto
-  image: dperson/torproxy
-  nickname: torpod1
-  contactInfo: noinfo@email.com
-
+  hiddenServiceDir: /var/lib/tor/hidden_service/
+  hiddenServicePort: 80
+  hiddenServiceTarget: 127.0.0.1:80
