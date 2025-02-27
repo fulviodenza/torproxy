@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.22 AS builder
+FROM golang:1.24 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -23,7 +23,7 @@ COPY internal/ internal/
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags "all=-N -l" -o manager cmd/main.go
 
 # Use a Golang base image to package the manager binary and include Delve
-FROM golang:1.22
+FROM golang:1.24
 
 WORKDIR /
 COPY --from=builder /workspace/manager .
