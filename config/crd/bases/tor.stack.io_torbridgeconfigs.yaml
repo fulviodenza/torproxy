@@ -45,6 +45,12 @@ spec:
                 type: integer
               extOrPort:
                 type: string
+              hiddenServiceDir:
+                type: string
+              hiddenServicePort:
+                type: integer
+              hiddenServiceTarget:
+                type: string
               image:
                 type: string
               nickname:
@@ -61,6 +67,8 @@ spec:
                 type: string
               socksPort:
                 type: integer
+            required:
+            - hiddenServicePort
             type: object
           status:
             description: TorBridgeConfigStatus defines the observed state of TorBridgeConfig

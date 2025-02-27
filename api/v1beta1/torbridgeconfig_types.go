@@ -11,14 +11,17 @@ type TorBridgeConfigSpec struct {
 	OrPort                    int    `json:"orPort,omitempty"`
 	DirPort                   int    `json:"dirPort,omitempty"`
 	SOCKSPort                 int    `json:"socksPort,omitempty"`
+	OriginPort                int    `json:"originPort,omitempty"`
+	RedirectPort              int    `json:"redirectPort,omitempty"`
+	HiddenServicePort         int    `json:"hiddenServicePort"`
 	Image                     string `json:"image,omitempty"`
 	ContactInfo               string `json:"contactInfo,omitempty"`
 	Nickname                  string `json:"nickname,omitempty"`
 	ServerTransportPlugin     string `json:"serverTransportPlugin,omitempty"`
 	ServerTransportListenAddr string `json:"serverTransportListenAddr,omitempty"`
 	ExtOrPort                 string `json:"extOrPort,omitempty"`
-	OriginPort                int    `json:"originPort,omitempty"`
-	RedirectPort              int    `json:"redirectPort,omitempty"`
+	HiddenServiceDir          string `json:"hiddenServiceDir,omitempty"`
+	HiddenServiceTarget       string `json:"hiddenServiceTarget,omitempty"`
 }
 
 // TorBridgeConfigStatus defines the observed state of TorBridgeConfig
