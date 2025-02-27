@@ -1,8 +1,6 @@
 module github.com/fulviodenza/torproxy
 
-go 1.22.0
-
-toolchain go1.22.4
+go 1.24
 
 require (
 	github.com/onsi/ginkgo/v2 v2.17.1

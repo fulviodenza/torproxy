@@ -37,6 +37,7 @@ type TorBridgeConfigReconciler struct {
 func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := log.FromContext(ctx)
 	log.Info("got new request: ", "namespace/name", req.NamespacedName.String())
+
 	torBridgeConfig := &v1beta1.TorBridgeConfig{}
 	err := r.Get(ctx, req.NamespacedName, torBridgeConfig)
 	if err != nil && !errors.IsNotFound(err) {
@@ -318,35 +319,44 @@ func (r *TorBridgeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+type torrcOption struct {
+	value    any
+	required bool
+}
+
 func generateTorrc(spec v1beta1.TorBridgeConfigSpec) string {
-	var sb strings.Builder
-
-	sb.WriteString("Log notice stdout\n")
-	sb.WriteString(fmt.Sprintf("ORPort %d\n", spec.OrPort))
-	if spec.DirPort != 0 {
-		sb.WriteString(fmt.Sprintf("DirPort %d\n", spec.DirPort))
-	}
-	if spec.SOCKSPort != 0 {
-		sb.WriteString(fmt.Sprintf("SOCKSPort 0.0.0.0:%d\n", spec.SOCKSPort))
-	}
-	sb.WriteString("BridgeRelay 1\n")
-	sb.WriteString("ExitPolicy reject *:*\n")
-
-	if spec.ServerTransportPlugin != "" {
-		sb.WriteString(fmt.Sprintf("ServerTransportPlugin %s\n", spec.ServerTransportPlugin))
-	}
-	if spec.ServerTransportListenAddr != "" {
-		sb.WriteString(fmt.Sprintf("ServerTransportListenAddr %s\n", spec.ServerTransportListenAddr))
-	}
-	if spec.ExtOrPort != "" {
-		sb.WriteString(fmt.Sprintf("ExtORPort %s\n", spec.ExtOrPort))
-	}
-	if spec.ContactInfo != "" {
-		sb.WriteString(fmt.Sprintf("ContactInfo %s\n", spec.ContactInfo))
-	}
-	if spec.Nickname != "" {
-		sb.WriteString(fmt.Sprintf("Nickname %s\n", spec.Nickname))
+	configs := map[string]torrcOption{
+		"Log notice":                {value: "stdout", required: true},
+		"ORPort":                    {value: spec.OrPort, required: true},
+		"DirPort":                   {value: spec.DirPort, required: false},
+		"SOCKSPort":                 {value: fmt.Sprintf("0.0.0.0:%d", spec.SOCKSPort), required: false},
+		"BridgeRelay":               {value: 1, required: true},
+		"ExitPolicy":                {value: "reject *:*", required: true},
+		"ServerTransportPlugin":     {value: spec.ServerTransportPlugin, required: false},
+		"ServerTransportListenAddr": {value: spec.ServerTransportListenAddr, required: false},
+		"ExtORPort":                 {value: spec.ExtOrPort, required: false},
+		"ContactInfo":               {value: spec.ContactInfo, required: false},
+		"Nickname":                  {value: spec.Nickname, required: false},
 	}
 
-	return sb.String()
+	var lines []string
+	for key, opt := range configs {
+		if !opt.required && isZeroValue(opt.value) {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("%s %v", key, opt.value))
+	}
+
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func isZeroValue(v interface{}) bool {
+	switch v := v.(type) {
+	case string:
+		return v == ""
+	case int, int32, int64:
+		return v == 0
+	default:
+		return v == nil
+	}
 }

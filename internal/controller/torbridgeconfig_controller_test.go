@@ -29,7 +29,7 @@ func TestTorBridgeConfigReconciler_Reconcile(t *testing.T) {
 		t.Fatalf("Unable to add corev1 scheme: %v", err)
 	}
 
-	torBridgeConfig := func(opts ...func(interface{})) *v1beta1.TorBridgeConfig {
+	torBridgeConfig := func(opts ...func(any)) *v1beta1.TorBridgeConfig {
 		t := &v1beta1.TorBridgeConfig{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-config",
