@@ -6,7 +6,7 @@ metadata:
     tor: hide-me
     tor-config-name: torbridgeconfig-sample
     tor-config-namespace: default
-    app: nginx-hidden
+    app: nginx-onion
     component: web
 spec:
   containers:

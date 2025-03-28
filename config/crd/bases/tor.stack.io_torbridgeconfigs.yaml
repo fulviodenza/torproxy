@@ -45,11 +45,11 @@ spec:
                 type: integer
               extOrPort:
                 type: string
-              hiddenServiceDir:
+              onionServiceDir:
                 type: string
-              hiddenServicePort:
+              onionServicePort:
                 type: integer
-              hiddenServiceTarget:
+              onionServiceTarget:
                 type: string
               image:
                 type: string
@@ -68,7 +68,7 @@ spec:
               socksPort:
                 type: integer
             required:
-            - hiddenServicePort
+            - onionServicePort
             type: object
           status:
             description: TorBridgeConfigStatus defines the observed state of TorBridgeConfig

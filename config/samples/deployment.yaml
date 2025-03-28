@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx-hidden
+  name: nginx-onion
 spec:
   replicas: 1
   selector:
     matchLabels:
       tor: hide-me
-      app: nginx-hidden
+      app: nginx-onion
   template:
     metadata:
       labels:
         tor: hide-me
         tor-config-name: torbridgeconfig-sample
         tor-config-namespace: default
-        app: nginx-hidden
+        app: nginx-onion
         component: web
     spec:
       containers:

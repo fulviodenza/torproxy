@@ -40,59 +40,79 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 
 	torBridgeConfig := &v1beta1.TorBridgeConfig{}
 	err := r.Get(ctx, req.NamespacedName, torBridgeConfig)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return reconcile.Result{}, err
+		}
+		return r.reconcilePod(ctx, log, req.NamespacedName)
+	}
+
+	return r.reconcileTorBridgeConfig(ctx, log, torBridgeConfig)
+}
+
+func (r *TorBridgeConfigReconciler) reconcileTorBridgeConfig(ctx context.Context, log logr.Logger, torBridgeConfig *v1beta1.TorBridgeConfig) (reconcile.Result, error) {
+	podList := &corev1.PodList{}
+	if err := r.List(ctx, podList, client.InNamespace(torBridgeConfig.Namespace), client.MatchingLabels{"tor": "hide-me"}); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if err == nil {
-		podList := &corev1.PodList{}
-		if err := r.List(ctx, podList, client.InNamespace(req.Namespace), client.MatchingLabels{"tor": "hide-me"}); err != nil {
-			return reconcile.Result{}, err
-		}
-
-		if torBridgeConfig.DeletionTimestamp != nil {
-			if err := r.unhandlePods(log, ctx, podList.Items); err != nil {
-				return reconcile.Result{}, err
-			}
-			return reconcile.Result{}, nil
-		}
-
-		if err := r.handlePods(log, ctx, podList.Items, *torBridgeConfig); err != nil {
+	if torBridgeConfig.DeletionTimestamp != nil {
+		if err := r.unhandlePods(log, ctx, podList.Items); err != nil {
 			return reconcile.Result{}, err
 		}
 		return reconcile.Result{}, nil
 	}
 
-	// if error is not found we need to look for the pods
-	// having the label "tor" and eventually inject the configuration
-	pod := &corev1.Pod{}
-	err = r.Get(ctx, req.NamespacedName, pod)
-	if err != nil && !errors.IsNotFound(err) {
+	if err := r.handlePods(log, ctx, podList.Items, *torBridgeConfig); err != nil {
 		return reconcile.Result{}, err
 	}
+	return reconcile.Result{}, nil
+}
+
+func (r *TorBridgeConfigReconciler) reconcilePod(ctx context.Context, log logr.Logger, namespacedName types.NamespacedName) (reconcile.Result, error) {
+	pod := &corev1.Pod{}
+	err := r.Get(ctx, namespacedName, pod)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, nil
+	}
+
 	if _, ok := pod.Labels["tor"]; !ok {
 		return reconcile.Result{}, nil
 	}
-	if err == nil {
-		torConfigName := pod.Labels["tor-config-name"]
-		torConfigNamespace := pod.Labels["tor-config-namespace"]
-		torBridgeConfig := &v1beta1.TorBridgeConfig{}
-		if err := r.Get(ctx, types.NamespacedName{
-			Namespace: torConfigNamespace,
-			Name:      torConfigName,
-		}, torBridgeConfig); err != nil && !errors.IsNotFound(err) {
-			return reconcile.Result{}, err
-		}
-		if errors.IsNotFound(err) || torBridgeConfig.Name == "" {
-			if err := r.unhandlePod(log, ctx, *pod); err != nil {
-				return reconcile.Result{}, err
-			}
-			return reconcile.Result{}, nil
-		}
 
-		if err := r.handlePod(log, ctx, *pod, *torBridgeConfig); err != nil {
+	torConfigName := pod.Labels["tor-config-name"]
+	torConfigNamespace := pod.Labels["tor-config-namespace"]
+	torBridgeConfig := &v1beta1.TorBridgeConfig{}
+
+	err = r.Get(ctx, types.NamespacedName{
+		Namespace: torConfigNamespace,
+		Name:      torConfigName,
+	}, torBridgeConfig)
+
+	if err != nil {
+		if !errors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
+		return r.handlePodWithoutConfig(ctx, log, pod)
+	}
+
+	if torBridgeConfig.Name == "" {
+		return r.handlePodWithoutConfig(ctx, log, pod)
+	}
+
+	if err := r.handlePod(log, ctx, *pod, *torBridgeConfig); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func (r *TorBridgeConfigReconciler) handlePodWithoutConfig(ctx context.Context, log logr.Logger, pod *corev1.Pod) (reconcile.Result, error) {
+	if err := r.unhandlePod(log, ctx, *pod); err != nil {
+		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
 }
@@ -105,17 +125,9 @@ func (r *TorBridgeConfigReconciler) unhandlePods(log logr.Logger, ctx context.Co
 }
 
 func (r *TorBridgeConfigReconciler) unhandlePod(log logr.Logger, ctx context.Context, pod corev1.Pod) error {
-	switch {
-	case hasTorContainer(pod):
-		log.Info("Deleting unmanaged hidden pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		if err := r.Delete(ctx, &pod); err != nil {
-			return err
-		}
-		newPod := createPod(pod)
-		log.Info("Creating new unhidden pod", "newPod.Name", newPod.Name, "newPod.Namespace", newPod.Namespace)
-		if err := r.Create(ctx, newPod); err != nil {
-			return err
-		}
+	log.Info("Deleting pod due to TorBridgeConfig deletion", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+	if err := r.Delete(ctx, &pod); err != nil {
+		return err
 	}
 	return nil
 }
@@ -171,42 +183,28 @@ func (r *TorBridgeConfigReconciler) getTorBridgeConfigFromPod(ctx context.Contex
 	return torBridgeConfig, nil
 }
 
-func createPod(pod corev1.Pod) *corev1.Pod {
-	newPod := &corev1.Pod{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s-%s", pod.Name, "hidden", utils.GenerateName()),
-			Namespace: pod.Namespace,
-		},
-	}
-	return newPod
-}
-
 func createPodWithTorContainer(pod corev1.Pod, torBridgeConfig v1beta1.TorBridgeConfig) *corev1.Pod {
 	newPod := &corev1.Pod{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s-%s", pod.Name, "hidden", utils.GenerateName()),
-			Namespace: pod.Namespace,
-			Labels: map[string]string{
-				"tor-config-name":      torBridgeConfig.Name,
-				"tor-config-namespace": torBridgeConfig.Namespace,
-			},
+			Name:        fmt.Sprintf("%s-%s-%s", pod.Name, "onion", utils.GenerateName()),
+			Namespace:   pod.Namespace,
+			Labels:      pod.Labels,
+			Annotations: pod.Annotations,
 		},
 	}
+
 	newPod.Spec = *pod.Spec.DeepCopy()
-	SOCKSPort := torBridgeConfig.Spec.SOCKSPort
+	newPod.Spec.DNSPolicy = corev1.DNSClusterFirst
 
 	for i, container := range newPod.Spec.Containers {
-		if container.Name != TorContainerName {
-			newPod.Spec.Containers[i].Env = append(newPod.Spec.Containers[i].Env, corev1.EnvVar{
-				Name:  "http_proxy",
-				Value: fmt.Sprintf("socks5://127.0.0.1:%d", SOCKSPort),
-			}, corev1.EnvVar{
-				Name:  "https_proxy",
-				Value: fmt.Sprintf("socks5://127.0.0.1:%d", SOCKSPort),
-			}, corev1.EnvVar{
-				Name:  "all_proxy",
-				Value: fmt.Sprintf("socks5://127.0.0.1:%d", SOCKSPort),
-			})
+		if container.Name == TorContainerName {
+			newPod.Spec.Containers[i].Ports = []corev1.ContainerPort{
+				{
+					ContainerPort: int32(torBridgeConfig.Spec.SOCKSPort),
+					Protocol:      corev1.ProtocolTCP,
+					HostIP:        "127.0.0.1",
+				},
+			}
 		}
 	}
 
@@ -248,13 +246,6 @@ func (r *TorBridgeConfigReconciler) handleReplicaSet(ctx context.Context, ns typ
 		}
 	}
 	return r.handleDeployment(ctx, types.NamespacedName{Namespace: replicaSet.Namespace, Name: controllerName}, torBridgeConfig)
-
-	// newReplicaSet := replicaSet.DeepCopy()
-
-	// torContainer := makeTorContainer(torBridgeConfig)
-	// newReplicaSet.Spec.Template.Spec.Containers = append(newReplicaSet.Spec.Template.Spec.Containers, *torContainer)
-	// newReplicaSet.Spec.Template.Name = fmt.Sprintf("%s-%s-%s", replicaSet.Name, "hidden", utils.GenerateName())
-	// return r.Update(ctx, replicaSet)
 }
 
 func (r *TorBridgeConfigReconciler) handleDeployment(ctx context.Context, ns types.NamespacedName, torBridgeConfig v1beta1.TorBridgeConfig) error {
@@ -268,7 +259,7 @@ func (r *TorBridgeConfigReconciler) handleDeployment(ctx context.Context, ns typ
 
 	torContainer := makeTorContainer(torBridgeConfig)
 	newDeployment.Spec.Template.Spec.Containers = append(newDeployment.Spec.Template.Spec.Containers, *torContainer)
-	newDeployment.Spec.Template.Name = fmt.Sprintf("%s-%s-%s", deployment.Name, "hidden", utils.GenerateName())
+	newDeployment.Spec.Template.Name = fmt.Sprintf("%s-%s-%s", deployment.Name, "onion", utils.GenerateName())
 	err = r.Update(ctx, deployment)
 	if err != nil {
 		return err
@@ -336,8 +327,8 @@ func generateTorrc(spec v1beta1.TorBridgeConfigSpec) string {
 		"ServerTransportListenAddr": {value: spec.ServerTransportListenAddr, required: false},
 		"ExtORPort":                 {value: spec.ExtOrPort, required: false},
 		"ContactInfo":               {value: spec.ContactInfo, required: false},
-		"HiddenServiceDir":          {value: spec.HiddenServiceDir, required: false},
-		"HiddenServicePort":         {value: fmt.Sprintf("%d %s", spec.HiddenServicePort, spec.HiddenServiceTarget), required: false},
+		"OnionServiceDir":           {value: spec.OnionServiceDir, required: false},
+		"OnionServicePort":          {value: fmt.Sprintf("%d %s", spec.OnionServicePort, spec.OnionServiceTarget), required: false},
 		"Nickname":                  {value: spec.Nickname, required: false},
 	}
 

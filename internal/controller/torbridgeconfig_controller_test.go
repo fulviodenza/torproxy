@@ -55,7 +55,9 @@ func TestTorBridgeConfigReconciler_Reconcile(t *testing.T) {
 				Name:      "existing-pod",
 				Namespace: "default",
 				Labels: map[string]string{
-					"tor": "hide-me",
+					"tor":                  "hide-me",
+					"tor-config-name":      "test-config",
+					"tor-config-namespace": "default",
 				},
 			},
 		}
@@ -110,10 +112,10 @@ func TestTorBridgeConfigReconciler_Reconcile(t *testing.T) {
 		expectedDeploymentName string
 	}{
 		{
-			name:             "Reconcile deletes unhidden pod and creates new pod with tor configuration",
+			name:             "Reconcile deletes unonion pod and creates new pod with tor configuration",
 			existingObjects:  []runtime.Object{torBridgeConfig(), pod()},
 			expectedPodCount: 1,
-			expectedPodName:  "existing-pod-hidden-",
+			expectedPodName:  "existing-pod-onion-",
 		},
 		{
 			name: "Reconcile with pod with ownerReferences",
@@ -124,7 +126,7 @@ func TestTorBridgeConfigReconciler_Reconcile(t *testing.T) {
 				},
 			))},
 			expectedDeploymentName: "controller",
-			expectedPodName:        "existing-pod-hidden-",
+			expectedPodName:        "existing-pod-onion-",
 		},
 	}
 
