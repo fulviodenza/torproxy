@@ -144,32 +144,10 @@ func (r *TorBridgeConfigReconciler) handlePod(log logr.Logger, ctx context.Conte
 				return err
 			}
 		case len(pod.OwnerReferences) != 0:
-			torBridgeConfig, err := r.getTorBridgeConfigFromPod(ctx, pod)
-			if err != nil {
-				return err
-			}
-			return r.handleControlledPod(ctx, pod, *torBridgeConfig)
+			return r.handleControlledPod(ctx, pod, torBridgeConfig)
 		}
 	}
 	return nil
-}
-
-func (r *TorBridgeConfigReconciler) getTorBridgeConfigFromPod(ctx context.Context, pod corev1.Pod) (*v1beta1.TorBridgeConfig, error) {
-	torBridgeConfigName := pod.Labels["tor-config-name"]
-	torBridgeConfigNamespace := pod.Labels["tor-config-namespace"]
-	if torBridgeConfigName == "" || torBridgeConfigNamespace == "" {
-		return nil, fmt.Errorf("pod %s/%s is missing tor-config-name or tor-config-namespace label", pod.Namespace, pod.Name)
-	}
-
-	torBridgeConfig := &v1beta1.TorBridgeConfig{}
-	err := r.Get(ctx, types.NamespacedName{
-		Name:      torBridgeConfigName,
-		Namespace: torBridgeConfigNamespace,
-	}, torBridgeConfig)
-	if err != nil {
-		return nil, err
-	}
-	return torBridgeConfig, nil
 }
 
 func createPod(pod corev1.Pod) *corev1.Pod {
