@@ -3,9 +3,9 @@ package controller
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/fulviodenza/torproxy/api/v1beta1"
+	"github.com/fulviodenza/torproxy/internal/torconfig"
 	"github.com/fulviodenza/torproxy/internal/utils"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -45,55 +45,24 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 		return reconcile.Result{}, err
 	}
 
-	if err == nil {
-		podList := &corev1.PodList{}
-		if err := r.List(ctx, podList, client.InNamespace(req.Namespace), client.MatchingLabels{"tor": "hide-me"}); err != nil {
-			return reconcile.Result{}, err
-		}
-
-		if torBridgeConfig.DeletionTimestamp != nil {
-			if err := r.unhandlePods(log, ctx, podList.Items); err != nil {
-				return reconcile.Result{}, err
-			}
-			return reconcile.Result{}, nil
-		}
-
-		if err := r.handlePods(log, ctx, podList.Items, *torBridgeConfig); err != nil {
-			return reconcile.Result{}, err
-		}
+	if errors.IsNotFound(err) {
 		return reconcile.Result{}, nil
 	}
 
-	// if error is not found we need to look for the pods
-	// having the label "tor" and eventually inject the configuration
-	pod := &corev1.Pod{}
-	err = r.Get(ctx, req.NamespacedName, pod)
-	if err != nil && !errors.IsNotFound(err) {
+	podList := &corev1.PodList{}
+	if err := r.List(ctx, podList, client.InNamespace(req.Namespace), client.MatchingLabels{"tor": "hide-me"}); err != nil {
 		return reconcile.Result{}, err
 	}
-	if _, ok := pod.Labels["tor"]; !ok {
+
+	if torBridgeConfig.DeletionTimestamp != nil {
+		if err := r.unhandlePods(log, ctx, podList.Items); err != nil {
+			return reconcile.Result{}, err
+		}
 		return reconcile.Result{}, nil
 	}
-	if err == nil {
-		torConfigName := pod.Labels["tor-config-name"]
-		torConfigNamespace := pod.Labels["tor-config-namespace"]
-		torBridgeConfig := &v1beta1.TorBridgeConfig{}
-		if err := r.Get(ctx, types.NamespacedName{
-			Namespace: torConfigNamespace,
-			Name:      torConfigName,
-		}, torBridgeConfig); err != nil && !errors.IsNotFound(err) {
-			return reconcile.Result{}, err
-		}
-		if errors.IsNotFound(err) || torBridgeConfig.Name == "" {
-			if err := r.unhandlePod(log, ctx, *pod); err != nil {
-				return reconcile.Result{}, err
-			}
-			return reconcile.Result{}, nil
-		}
 
-		if err := r.handlePod(log, ctx, *pod, *torBridgeConfig); err != nil {
-			return reconcile.Result{}, err
-		}
+	if err := r.handlePods(log, ctx, podList.Items, *torBridgeConfig); err != nil {
+		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
 }
@@ -110,11 +79,6 @@ func (r *TorBridgeConfigReconciler) unhandlePod(log logr.Logger, ctx context.Con
 	case hasTorContainer(pod):
 		log.Info("Deleting unmanaged hidden pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
 		if err := r.Delete(ctx, &pod); err != nil {
-			return err
-		}
-		newPod := createPod(pod)
-		log.Info("Creating new unhidden pod", "newPod.Name", newPod.Name, "newPod.Namespace", newPod.Namespace)
-		if err := r.Create(ctx, newPod); err != nil {
 			return err
 		}
 	}
@@ -144,42 +108,10 @@ func (r *TorBridgeConfigReconciler) handlePod(log logr.Logger, ctx context.Conte
 				return err
 			}
 		case len(pod.OwnerReferences) != 0:
-			torBridgeConfig, err := r.getTorBridgeConfigFromPod(ctx, pod)
-			if err != nil {
-				return err
-			}
-			return r.handleControlledPod(ctx, pod, *torBridgeConfig)
+			return r.handleControlledPod(ctx, pod, torBridgeConfig)
 		}
 	}
 	return nil
-}
-
-func (r *TorBridgeConfigReconciler) getTorBridgeConfigFromPod(ctx context.Context, pod corev1.Pod) (*v1beta1.TorBridgeConfig, error) {
-	torBridgeConfigName := pod.Labels["tor-config-name"]
-	torBridgeConfigNamespace := pod.Labels["tor-config-namespace"]
-	if torBridgeConfigName == "" || torBridgeConfigNamespace == "" {
-		return nil, fmt.Errorf("pod %s/%s is missing tor-config-name or tor-config-namespace label", pod.Namespace, pod.Name)
-	}
-
-	torBridgeConfig := &v1beta1.TorBridgeConfig{}
-	err := r.Get(ctx, types.NamespacedName{
-		Name:      torBridgeConfigName,
-		Namespace: torBridgeConfigNamespace,
-	}, torBridgeConfig)
-	if err != nil {
-		return nil, err
-	}
-	return torBridgeConfig, nil
-}
-
-func createPod(pod corev1.Pod) *corev1.Pod {
-	newPod := &corev1.Pod{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s-%s", pod.Name, "hidden", utils.GenerateName()),
-			Namespace: pod.Namespace,
-		},
-	}
-	return newPod
 }
 
 func createPodWithTorContainer(pod corev1.Pod, torBridgeConfig v1beta1.TorBridgeConfig) *corev1.Pod {
@@ -249,13 +181,6 @@ func (r *TorBridgeConfigReconciler) handleReplicaSet(ctx context.Context, ns typ
 		}
 	}
 	return r.handleDeployment(ctx, types.NamespacedName{Namespace: replicaSet.Namespace, Name: controllerName}, torBridgeConfig)
-
-	// newReplicaSet := replicaSet.DeepCopy()
-
-	// torContainer := makeTorContainer(torBridgeConfig)
-	// newReplicaSet.Spec.Template.Spec.Containers = append(newReplicaSet.Spec.Template.Spec.Containers, *torContainer)
-	// newReplicaSet.Spec.Template.Name = fmt.Sprintf("%s-%s-%s", replicaSet.Name, "hidden", utils.GenerateName())
-	// return r.Update(ctx, replicaSet)
 }
 
 func (r *TorBridgeConfigReconciler) handleDeployment(ctx context.Context, ns types.NamespacedName, torBridgeConfig v1beta1.TorBridgeConfig) error {
@@ -287,7 +212,7 @@ func hasTorContainer(pod corev1.Pod) bool {
 }
 
 func makeTorContainer(torBridgeConfig v1beta1.TorBridgeConfig) *corev1.Container {
-	torrc := generateTorrc(torBridgeConfig.Spec)
+	torrc := torconfig.NewTorConfigFile(torBridgeConfig.Spec)
 	return &corev1.Container{
 		Name:  TorContainerName,
 		Image: torBridgeConfig.Spec.Image,
@@ -318,48 +243,4 @@ func (r *TorBridgeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&corev1.Pod{}, &handler.EnqueueRequestForObject{}).
 		Owns(&corev1.Pod{}).
 		Complete(r)
-}
-
-type torrcOption struct {
-	value    any
-	required bool
-}
-
-func generateTorrc(spec v1beta1.TorBridgeConfigSpec) string {
-	configs := map[string]torrcOption{
-		"Log notice":                {value: "stdout", required: true},
-		"ORPort":                    {value: spec.OrPort, required: true},
-		"DirPort":                   {value: spec.DirPort, required: false},
-		"SOCKSPort":                 {value: fmt.Sprintf("0.0.0.0:%d", spec.SOCKSPort), required: false},
-		"BridgeRelay":               {value: 1, required: true},
-		"ExitPolicy":                {value: "reject *:*", required: true},
-		"ServerTransportPlugin":     {value: spec.ServerTransportPlugin, required: false},
-		"ServerTransportListenAddr": {value: spec.ServerTransportListenAddr, required: false},
-		"ExtORPort":                 {value: spec.ExtOrPort, required: false},
-		"ContactInfo":               {value: spec.ContactInfo, required: false},
-		"HiddenServiceDir":          {value: spec.HiddenServiceDir, required: false},
-		"HiddenServicePort":         {value: fmt.Sprintf("%d %s", spec.HiddenServicePort, spec.HiddenServiceTarget), required: false},
-		"Nickname":                  {value: spec.Nickname, required: false},
-	}
-
-	var lines []string
-	for key, opt := range configs {
-		if !opt.required && isZeroValue(opt.value) {
-			continue
-		}
-		lines = append(lines, fmt.Sprintf("%s %v", key, opt.value))
-	}
-
-	return strings.Join(lines, "\n") + "\n"
-}
-
-func isZeroValue(v interface{}) bool {
-	switch v := v.(type) {
-	case string:
-		return v == ""
-	case int, int32, int64:
-		return v == 0
-	default:
-		return v == nil
-	}
 }
