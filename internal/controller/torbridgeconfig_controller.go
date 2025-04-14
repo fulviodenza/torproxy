@@ -3,9 +3,9 @@ package controller
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/fulviodenza/torproxy/api/v1beta1"
+	"github.com/fulviodenza/torproxy/internal/torrc"
 	"github.com/fulviodenza/torproxy/internal/utils"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -196,13 +196,6 @@ func (r *TorBridgeConfigReconciler) handleReplicaSet(ctx context.Context, ns typ
 		}
 	}
 	return r.handleDeployment(ctx, types.NamespacedName{Namespace: replicaSet.Namespace, Name: controllerName}, torBridgeConfig)
-
-	// newReplicaSet := replicaSet.DeepCopy()
-
-	// torContainer := makeTorContainer(torBridgeConfig)
-	// newReplicaSet.Spec.Template.Spec.Containers = append(newReplicaSet.Spec.Template.Spec.Containers, *torContainer)
-	// newReplicaSet.Spec.Template.Name = fmt.Sprintf("%s-%s-%s", replicaSet.Name, "hidden", utils.GenerateName())
-	// return r.Update(ctx, replicaSet)
 }
 
 func (r *TorBridgeConfigReconciler) handleDeployment(ctx context.Context, ns types.NamespacedName, torBridgeConfig v1beta1.TorBridgeConfig) error {
@@ -234,7 +227,7 @@ func hasTorContainer(pod corev1.Pod) bool {
 }
 
 func makeTorContainer(torBridgeConfig v1beta1.TorBridgeConfig) *corev1.Container {
-	torrc := generateTorrc(torBridgeConfig.Spec)
+	torrc := torrc.GenerateTorrc(torBridgeConfig.Spec)
 	return &corev1.Container{
 		Name:  TorContainerName,
 		Image: torBridgeConfig.Spec.Image,
@@ -265,48 +258,4 @@ func (r *TorBridgeConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&corev1.Pod{}, &handler.EnqueueRequestForObject{}).
 		Owns(&corev1.Pod{}).
 		Complete(r)
-}
-
-type torrcOption struct {
-	value    any
-	required bool
-}
-
-func generateTorrc(spec v1beta1.TorBridgeConfigSpec) string {
-	configs := map[string]torrcOption{
-		"Log notice":                {value: "stdout", required: true},
-		"ORPort":                    {value: spec.OrPort, required: true},
-		"DirPort":                   {value: spec.DirPort, required: false},
-		"SOCKSPort":                 {value: fmt.Sprintf("0.0.0.0:%d", spec.SOCKSPort), required: false},
-		"BridgeRelay":               {value: 1, required: true},
-		"ExitPolicy":                {value: "reject *:*", required: true},
-		"ServerTransportPlugin":     {value: spec.ServerTransportPlugin, required: false},
-		"ServerTransportListenAddr": {value: spec.ServerTransportListenAddr, required: false},
-		"ExtORPort":                 {value: spec.ExtOrPort, required: false},
-		"ContactInfo":               {value: spec.ContactInfo, required: false},
-		"HiddenServiceDir":          {value: spec.HiddenServiceDir, required: false},
-		"HiddenServicePort":         {value: fmt.Sprintf("%d %s", spec.HiddenServicePort, spec.HiddenServiceTarget), required: false},
-		"Nickname":                  {value: spec.Nickname, required: false},
-	}
-
-	var lines []string
-	for key, opt := range configs {
-		if !opt.required && isZeroValue(opt.value) {
-			continue
-		}
-		lines = append(lines, fmt.Sprintf("%s %v", key, opt.value))
-	}
-
-	return strings.Join(lines, "\n") + "\n"
-}
-
-func isZeroValue(v interface{}) bool {
-	switch v := v.(type) {
-	case string:
-		return v == ""
-	case int, int32, int64:
-		return v == 0
-	default:
-		return v == nil
-	}
 }
