@@ -7,6 +7,30 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - pods
   verbs:
   - create
@@ -62,32 +86,6 @@ rules:
   - tor.stack.io
   resources:
   - onionservices/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - tor.stack.io
-  resources:
-  - torbridgeconfigs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - tor.stack.io
-  resources:
-  - torbridgeconfigs/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - tor.stack.io
-  resources:
-  - torbridgeconfigs/status
   verbs:
   - get
   - patch

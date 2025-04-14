@@ -28,7 +28,7 @@ type OnionServiceReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-var TorDockerImage = "docker.io/torproject/tor:latest"
+var TorDockerImage = "dperson/torproxy:latest"
 
 const torFinalizerName = "onionservice.tor.stack.io/finalizer"
 
@@ -36,6 +36,8 @@ const torFinalizerName = "onionservice.tor.stack.io/finalizer"
 // +kubebuilder:rbac:groups=tor.stack.io,resources=onionservices/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=tor.stack.io,resources=onionservices/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update;patch;delete;create
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;update;patch;delete;create
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;update;patch;delete;create
 // +kubebuilder:rbac:groups=apps,resources=replicaset,verbs=get;list;watch;update;patch;delete;create
 
@@ -182,13 +184,15 @@ func (r *OnionServiceReconciler) reconcilePVC(ctx context.Context, onion *v1beta
 	return nil
 }
 
-// Create or update Deployment with Tor container
 func (r *OnionServiceReconciler) reconcileDeployment(ctx context.Context, onion *v1beta1.OnionService) error {
 	hiddenServiceDir := onion.Spec.HiddenServiceDir
 	if hiddenServiceDir == "" {
 		hiddenServiceDir = "/var/lib/tor/hidden_service/"
 	}
 
+	torUID := int64(101)
+	torGID := int64(101)
+	var zero int64 = 0
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      onion.Name,
@@ -210,12 +214,38 @@ func (r *OnionServiceReconciler) reconcileDeployment(ctx context.Context, onion 
 					},
 				},
 				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{
+						{
+							Name:  "init-permissions", // init container to set up permissions
+							Image: "busybox",
+							Command: []string{
+								"sh",
+								"-c",
+								fmt.Sprintf("mkdir -p %s && chown -R 101:101 %s && chmod -R 700 %s",
+									hiddenServiceDir, filepath.Dir(hiddenServiceDir), hiddenServiceDir),
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "hidden-service",
+									MountPath: filepath.Dir(hiddenServiceDir),
+								},
+							},
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser: &zero,
+							},
+						},
+					},
+					SecurityContext: &corev1.PodSecurityContext{
+						FSGroup: &torGID,
+					},
 					Containers: []corev1.Container{
 						{
 							Name:  "tor",
 							Image: TorDockerImage,
-							Args: []string{
-								"-f", "/etc/tor/torrc",
+							Command: []string{
+								"sh",
+								"-c",
+								"tor -f /etc/tor/torrc",
 							},
 							Ports: []corev1.ContainerPort{
 								{
@@ -233,6 +263,10 @@ func (r *OnionServiceReconciler) reconcileDeployment(ctx context.Context, onion 
 									Name:      "hidden-service",
 									MountPath: filepath.Dir(hiddenServiceDir),
 								},
+							},
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser:  &torUID,
+								RunAsGroup: &torGID,
 							},
 						},
 					},
