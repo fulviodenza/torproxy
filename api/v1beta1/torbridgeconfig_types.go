@@ -16,10 +16,10 @@ const CleanupTorBridgeConfigFinalizer = "torbridgeconfig.torproxy/cleanup"
 
 type OnionService struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   OnionServiceSpec   `json:"spec"`
-	Status OnionServiceStatus `json:"status"`
+	Spec   OnionServiceSpec   `json:"spec,omitempty"`
+	Status OnionServiceStatus `json:"status,omitempty"`
 }
 
 type OnionServiceSpec struct {
@@ -76,10 +76,10 @@ type TorBridgeConfigStatus struct {
 // TorBridgeConfig is the Schema for the TorBridgeConfigs API
 type TorBridgeConfig struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   TorBridgeConfigSpec   `json:"spec"`
-	Status TorBridgeConfigStatus `json:"status"`
+	Spec   TorBridgeConfigSpec   `json:"spec,omitempty"`
+	Status TorBridgeConfigStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
