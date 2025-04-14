@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fulviodenza/torproxy/api/v1beta1"
 	"github.com/google/go-cmp/cmp"
@@ -49,7 +50,7 @@ func TestTorBridgeConfigReconciler_Reconcile(t *testing.T) {
 		return t
 	}
 
-	pod := func(opts ...func(interface{})) *corev1.Pod {
+	pod := func(opts ...func(any)) *corev1.Pod {
 		p := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "existing-pod",
@@ -66,7 +67,7 @@ func TestTorBridgeConfigReconciler_Reconcile(t *testing.T) {
 		return p
 	}
 
-	deployment := func(opts ...func(interface{})) *appsv1.Deployment {
+	deployment := func(opts ...func(any)) *appsv1.Deployment {
 		p := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "controller",
@@ -96,9 +97,21 @@ func TestTorBridgeConfigReconciler_Reconcile(t *testing.T) {
 		return p
 	}
 
-	withOwnerReferences := func(or metav1.OwnerReference) func(interface{}) {
-		return func(o interface{}) {
+	withOwnerReferences := func(or metav1.OwnerReference) func(any) {
+		return func(o any) {
 			o.(*corev1.Pod).OwnerReferences = append(o.(*corev1.Pod).OwnerReferences, or)
+		}
+	}
+
+	withDeletionTimestamp := func() func(any) {
+		return func(o any) {
+			o.(client.Object).SetDeletionTimestamp(&metav1.Time{Time: time.Unix(0, 1)})
+		}
+	}
+
+	withFinalizer := func(f string) func(any) {
+		return func(o any) {
+			o.(client.Object).SetFinalizers(append(o.(client.Object).GetFinalizers(), f))
 		}
 	}
 
@@ -125,6 +138,12 @@ func TestTorBridgeConfigReconciler_Reconcile(t *testing.T) {
 			))},
 			expectedDeploymentName: "controller",
 			expectedPodName:        "existing-pod-hidden-",
+		},
+		{
+			name:             "Reconcile deletes hidden pods when configuration is deleted",
+			existingObjects:  []runtime.Object{torBridgeConfig(withDeletionTimestamp(), withFinalizer("fin")), pod()},
+			expectedPodCount: 0,
+			expectedPodName:  "",
 		},
 	}
 
