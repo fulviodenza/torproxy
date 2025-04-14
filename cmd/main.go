@@ -35,7 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	torv1beta1 "github.com/fulviodenza/torproxy/api/v1beta1"
-	"github.com/fulviodenza/torproxy/internal/controller"
+	"github.com/fulviodenza/torproxy/internal/controllers/onionservice"
+	torbridgeconfigcontroller "github.com/fulviodenza/torproxy/internal/controllers/torbridgeconfig"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -123,7 +124,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.TorBridgeConfigReconciler{
+	if err = (&torbridgeconfigcontroller.TorBridgeConfigReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "TorBridgeConfig")
+		os.Exit(1)
+	}
+
+	if err = (&onionservice.OnionServiceReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {

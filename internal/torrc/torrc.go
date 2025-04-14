@@ -24,8 +24,6 @@ func GenerateTorrc(spec v1beta1.TorBridgeConfigSpec) string {
 		"ServerTransportListenAddr": {value: spec.ServerTransportListenAddr, required: false},
 		"ExtORPort":                 {value: spec.ExtOrPort, required: false},
 		"ContactInfo":               {value: spec.ContactInfo, required: false},
-		"HiddenServiceDir":          {value: spec.HiddenServiceDir, required: false},
-		"HiddenServicePort":         {value: fmt.Sprintf("%d %s", spec.HiddenServicePort, spec.HiddenServiceTarget), required: false},
 		"Nickname":                  {value: spec.Nickname, required: false},
 	}
 

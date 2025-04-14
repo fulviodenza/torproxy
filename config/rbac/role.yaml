@@ -43,6 +43,32 @@ rules:
 - apiGroups:
   - tor.stack.io
   resources:
+  - onionservices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tor.stack.io
+  resources:
+  - onionservices/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - tor.stack.io
+  resources:
+  - onionservices/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - tor.stack.io
+  resources:
   - torbridgeconfigs
   verbs:
   - create
