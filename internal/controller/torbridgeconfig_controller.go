@@ -45,55 +45,24 @@ func (r *TorBridgeConfigReconciler) Reconcile(ctx context.Context, req reconcile
 		return reconcile.Result{}, err
 	}
 
-	if err == nil {
-		podList := &corev1.PodList{}
-		if err := r.List(ctx, podList, client.InNamespace(req.Namespace), client.MatchingLabels{"tor": "hide-me"}); err != nil {
-			return reconcile.Result{}, err
-		}
-
-		if torBridgeConfig.DeletionTimestamp != nil {
-			if err := r.unhandlePods(log, ctx, podList.Items); err != nil {
-				return reconcile.Result{}, err
-			}
-			return reconcile.Result{}, nil
-		}
-
-		if err := r.handlePods(log, ctx, podList.Items, *torBridgeConfig); err != nil {
-			return reconcile.Result{}, err
-		}
-		return reconcile.Result{}, nil
-	}
-
-	// if error is not found we need to look for the pods
-	// having the label "tor" and eventually inject the configuration
-	pod := &corev1.Pod{}
-	err = r.Get(ctx, req.NamespacedName, pod)
-	if err != nil && !errors.IsNotFound(err) {
+	if errors.IsNotFound(err) {
 		return reconcile.Result{}, err
 	}
-	if _, ok := pod.Labels["tor"]; !ok {
+
+	podList := &corev1.PodList{}
+	if err := r.List(ctx, podList, client.InNamespace(req.Namespace), client.MatchingLabels{"tor": "hide-me"}); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if torBridgeConfig.DeletionTimestamp != nil {
+		if err := r.unhandlePods(log, ctx, podList.Items); err != nil {
+			return reconcile.Result{}, err
+		}
 		return reconcile.Result{}, nil
 	}
-	if err == nil {
-		torConfigName := pod.Labels["tor-config-name"]
-		torConfigNamespace := pod.Labels["tor-config-namespace"]
-		torBridgeConfig := &v1beta1.TorBridgeConfig{}
-		if err := r.Get(ctx, types.NamespacedName{
-			Namespace: torConfigNamespace,
-			Name:      torConfigName,
-		}, torBridgeConfig); err != nil && !errors.IsNotFound(err) {
-			return reconcile.Result{}, err
-		}
-		if errors.IsNotFound(err) || torBridgeConfig.Name == "" {
-			if err := r.unhandlePod(log, ctx, *pod); err != nil {
-				return reconcile.Result{}, err
-			}
-			return reconcile.Result{}, nil
-		}
 
-		if err := r.handlePod(log, ctx, *pod, *torBridgeConfig); err != nil {
-			return reconcile.Result{}, err
-		}
+	if err := r.handlePods(log, ctx, podList.Items, *torBridgeConfig); err != nil {
+		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
 }
@@ -144,32 +113,10 @@ func (r *TorBridgeConfigReconciler) handlePod(log logr.Logger, ctx context.Conte
 				return err
 			}
 		case len(pod.OwnerReferences) != 0:
-			torBridgeConfig, err := r.getTorBridgeConfigFromPod(ctx, pod)
-			if err != nil {
-				return err
-			}
-			return r.handleControlledPod(ctx, pod, *torBridgeConfig)
+			return r.handleControlledPod(ctx, pod, torBridgeConfig)
 		}
 	}
 	return nil
-}
-
-func (r *TorBridgeConfigReconciler) getTorBridgeConfigFromPod(ctx context.Context, pod corev1.Pod) (*v1beta1.TorBridgeConfig, error) {
-	torBridgeConfigName := pod.Labels["tor-config-name"]
-	torBridgeConfigNamespace := pod.Labels["tor-config-namespace"]
-	if torBridgeConfigName == "" || torBridgeConfigNamespace == "" {
-		return nil, fmt.Errorf("pod %s/%s is missing tor-config-name or tor-config-namespace label", pod.Namespace, pod.Name)
-	}
-
-	torBridgeConfig := &v1beta1.TorBridgeConfig{}
-	err := r.Get(ctx, types.NamespacedName{
-		Name:      torBridgeConfigName,
-		Namespace: torBridgeConfigNamespace,
-	}, torBridgeConfig)
-	if err != nil {
-		return nil, err
-	}
-	return torBridgeConfig, nil
 }
 
 func createPod(pod corev1.Pod) *corev1.Pod {

@@ -1,23 +1,68 @@
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  labels:
-    app.kubernetes.io/name: torproxy
-    app.kubernetes.io/managed-by: kustomize
   name: manager-role
 rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["create", "get", "list", "watch", "update", "delete"]
-- apiGroups: ["apps"]
-  resources: ["deployments", "replicasets"]
-  verbs: ["create", "get", "list", "watch", "update", "delete"]
-- apiGroups: ["tor.stack.io"]
-  resources: ["torbridgeconfigs"]
-  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-- apiGroups: ["tor.stack.io"]
-  resources: ["torbridgeconfigs/status"]
-  verbs: ["get", "update", "patch"]
-- apiGroups: ["tor.stack.io"]
-  resources: ["torbridgeconfigs/finalizers"]
-  verbs: ["update"]
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - replicaset
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tor.stack.io
+  resources:
+  - torbridgeconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tor.stack.io
+  resources:
+  - torbridgeconfigs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - tor.stack.io
+  resources:
+  - torbridgeconfigs/status
+  verbs:
+  - get
+  - patch
+  - update
