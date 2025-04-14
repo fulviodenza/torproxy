@@ -3,7 +3,7 @@ Debug the controller is quite easy.
 
 First, build and push to the registry a debug image of the application, this can be performed running the command
 ```sh
-make docker-build-debug
+docker build -t fulviodenza/torproxy:latest . -f debug.Dockerfile
 make deploy-debug
 ```
 
