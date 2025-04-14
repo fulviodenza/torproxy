@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	torv1beta1 "github.com/fulviodenza/torproxy/api/v1beta1"
-	"github.com/fulviodenza/torproxy/internal/controller"
+	"github.com/fulviodenza/torproxy/internal/controllers/onionservice"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -123,7 +123,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.TorBridgeConfigReconciler{
+	if err = (&onionservice.OnionServiceReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {

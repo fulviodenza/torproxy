@@ -3,6 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/tor.stack.io_torbridgeconfigs.yaml
+- bases/tor.stack.io_onionservices.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

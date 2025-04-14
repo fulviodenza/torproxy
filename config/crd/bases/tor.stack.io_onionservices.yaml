@@ -4,20 +4,29 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.15.0
-  name: torbridgeconfigs.tor.stack.io
+  name: onionservices.tor.stack.io
 spec:
   group: tor.stack.io
   names:
-    kind: TorBridgeConfig
-    listKind: TorBridgeConfigList
-    plural: torbridgeconfigs
-    singular: torbridgeconfig
+    kind: OnionService
+    listKind: OnionServiceList
+    plural: onionservices
+    singular: onionservice
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - jsonPath: .status.onionAddress
+      name: Onion Address
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta1
     schema:
       openAPIV3Schema:
-        description: TorBridgeConfig is the Schema for the TorBridgeConfigs API
         properties:
           apiVersion:
             description: |-
@@ -37,41 +46,40 @@ spec:
           metadata:
             type: object
           spec:
-            description: TorBridgeConfigSpec defines the desired state of TorBridgeConfig
             properties:
-              contactInfo:
-                type: string
-              dirPort:
-                type: integer
-              extOrPort:
-                type: string
               hiddenServiceDir:
                 type: string
               hiddenServicePort:
                 type: integer
               hiddenServiceTarget:
                 type: string
-              image:
-                type: string
-              nickname:
-                type: string
-              orPort:
-                type: integer
-              originPort:
-                type: integer
-              redirectPort:
-                type: integer
-              serverTransportListenAddr:
-                type: string
-              serverTransportPlugin:
-                type: string
+              socksPolicy:
+                description: |-
+                  Entry policies to allow/deny SOCKS requests based on IP address.
+                  First entry that matches wins. If no SOCKSPolicy is set, we accept
+                  all (and only) requests that reach a SOCKSPort. Untrusted users who
+                  can access your SOCKSPort may be able to learn about the connections
+                  you make.
+                  SOCKSPolicy accept 192.168.0.0/16
+                  SOCKSPolicy accept6 FC00::/7
+                  SOCKSPolicy reject *
+                items:
+                  type: string
+                type: array
               socksPort:
                 type: integer
             required:
             - hiddenServicePort
+            - socksPort
             type: object
           status:
-            description: TorBridgeConfigStatus defines the observed state of TorBridgeConfig
+            properties:
+              message:
+                type: string
+              onionAddress:
+                type: string
+              phase:
+                type: string
             type: object
         type: object
     served: true
