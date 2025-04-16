@@ -27,6 +27,9 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
+        description: |-
+          OnionService is the API type to create an onion service listening on the port
+          SOCKSPort with the given SOCKSPolicies.
         properties:
           apiVersion:
             description: |-
@@ -48,25 +51,45 @@ spec:
           spec:
             properties:
               hiddenServiceDir:
+                description: |-
+                  HiddenServiceDir specifies the directory where Tor will store information about the hidden
+                  service, including the private key. If not specified, defaults to "/var/lib/tor/hidden_service/".
+                  This directory must be accessible only by the user running Tor and have permissions 0700.
                 type: string
               hiddenServicePort:
+                description: |-
+                  HiddenServicePort specifies the virtual port that will be exposed on the .onion address.
+                  Clients connecting to this port on the .onion address will be redirected to
+                  the target specified in HiddenServiceTarget.
+                maximum: 65535
+                minimum: 1
                 type: integer
               hiddenServiceTarget:
+                description: |-
+                  HiddenServiceTarget specifies the IP address and port where the hidden service
+                  traffic should be forwarded (e.g., "127.0.0.1:8080"). This is the backend service
+                  that will be accessible through the .onion address.
+                  Format should be "<address>:<port>".
                 type: string
               socksPolicy:
                 description: |-
-                  Entry policies to allow/deny SOCKS requests based on IP address.
-                  First entry that matches wins. If no SOCKSPolicy is set, we accept
-                  all (and only) requests that reach a SOCKSPort. Untrusted users who
-                  can access your SOCKSPort may be able to learn about the connections
-                  you make.
-                  SOCKSPolicy accept 192.168.0.0/16
-                  SOCKSPolicy accept6 FC00::/7
-                  SOCKSPolicy reject *
+                  SOCKSPolicy controls which external applications can connect to which
+                  ports on the SOCKS interface. The format is "[accept|reject] address/mask[:port]".
+                  For example:
+                  - "accept 192.168.0.0/16" - allow connections from addresses in 192.168.0.0/16
+                  - "accept6 FC00::/7" - allow connections from IPv6 addresses in FC00::/7
+                  - "reject *" - reject everything else
+                  If no SOCKSPolicy entries are provided, Tor will accept all connections
+                  on the SOCKS port by default.
                 items:
                   type: string
                 type: array
               socksPort:
+                description: |-
+                  SOCKSPort specifies the port where Tor will listen for SOCKS connections from your applications.
+                  If set to 0, no SOCKS listener will be started.
+                maximum: 65535
+                minimum: 0
                 type: integer
             required:
             - hiddenServicePort
@@ -75,12 +98,22 @@ spec:
           status:
             properties:
               message:
+                description: Message provides additional information about the current
+                  phase.
                 type: string
               onionAddress:
+                description: |-
+                  OnionAddress is the generated .onion address for this hidden service, once available.
+                  This is the address that clients can use to connect to the service over the Tor network.
+                  Example: "abcdefghijklmnop.onion"
                 type: string
               phase:
+                description: Phase represents the current state of the OnionService
+                  (Pending, Running, Failed, etc).
                 type: string
             type: object
+        required:
+        - metadata
         type: object
     served: true
     storage: true

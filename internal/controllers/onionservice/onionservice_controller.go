@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/fulviodenza/torproxy/api/v1beta1"
+	"github.com/fulviodenza/torproxy/internal/torrc"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -75,7 +75,7 @@ func (r *OnionServiceReconciler) Reconcile(ctx context.Context, req reconcile.Re
 		}
 	}
 
-	torrcConfig := generateTorrcConfig(onionService)
+	torrcConfig := torrc.GenerateTorrcConfigForOnionService(onionService)
 
 	if err := r.reconcileConfigMap(ctx, onionService, torrcConfig); err != nil {
 		return reconcile.Result{}, err
@@ -90,34 +90,6 @@ func (r *OnionServiceReconciler) Reconcile(ctx context.Context, req reconcile.Re
 	}
 
 	return reconcile.Result{}, nil
-}
-
-// Generate torrc configuration based on OnionService spec
-func generateTorrcConfig(onion *v1beta1.OnionService) string {
-	var config strings.Builder
-
-	if onion.Spec.SOCKSPort > 0 {
-		fmt.Fprintf(&config, "SOCKSPort %d\n", onion.Spec.SOCKSPort)
-	}
-
-	for _, policy := range onion.Spec.SOCKSPolicy {
-		fmt.Fprintf(&config, "SOCKSPolicy %s\n", policy)
-	}
-
-	hiddenServiceDir := onion.Spec.HiddenServiceDir
-	if hiddenServiceDir == "" {
-		hiddenServiceDir = "/var/lib/tor/hidden_service/"
-	}
-
-	fmt.Fprintf(&config, "HiddenServiceDir %s\n", hiddenServiceDir)
-	fmt.Fprintf(&config, "HiddenServicePort %d %s\n",
-		onion.Spec.HiddenServicePort,
-		onion.Spec.HiddenServiceTarget)
-
-	fmt.Fprintf(&config, "DataDirectory /var/lib/tor\n")
-	fmt.Fprintf(&config, "RunAsDaemon 0\n")
-
-	return config.String()
 }
 
 // Create or update ConfigMap with torrc
