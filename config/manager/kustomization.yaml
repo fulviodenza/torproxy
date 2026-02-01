@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: torproxy
-  newTag: latest
+  newTag: latest:latest

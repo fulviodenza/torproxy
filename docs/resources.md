@@ -42,13 +42,6 @@ spec:
         - containerPort: 80
 ```
 
-To check the onion address after a hidden pod is created: 
-```sh
-kubectl exec -it web-app-onion-cd5588ccf-td7rb -- cat /var/lib/tor/hidden_service/hostname
-Defaulted container "tor" out of: tor, init-permissions (init)
-5jiw5dsublh3ap3vpvm5m32aj5gyeoje6v5g7dnibnq4ohrxyqag53ad.onion
-```
-
 ## Resources in design phase
 - `TorRelayConfig`
 - `TorNetworkConfig`

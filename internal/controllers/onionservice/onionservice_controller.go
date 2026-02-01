@@ -10,6 +10,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/remotecommand"
 
 	"github.com/fulviodenza/torproxy/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,7 +27,8 @@ import (
 
 type OnionServiceReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	KubeClient kubernetes.Interface
+	Scheme     *runtime.Scheme
 }
 
 var TorDockerImage = "dperson/torproxy:latest"
@@ -36,6 +39,7 @@ const torFinalizerName = "onionservice.tor.stack.io/finalizer"
 // +kubebuilder:rbac:groups=tor.stack.io,resources=onionservices/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=tor.stack.io,resources=onionservices/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update;patch;delete;create
+// +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;update;patch;delete;create
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;update;patch;delete;create
@@ -86,6 +90,11 @@ func (r *OnionServiceReconciler) Reconcile(ctx context.Context, req reconcile.Re
 	}
 
 	if err := r.reconcileDeployment(ctx, onionService); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	err = r.reconcileStatus(ctx, onionService)
+	if err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -305,6 +314,122 @@ func (r *OnionServiceReconciler) reconcileDeployment(ctx context.Context, onion 
 
 	found.Spec = deployment.Spec
 	return r.Update(ctx, found)
+}
+
+func (r *OnionServiceReconciler) reconcileStatus(ctx context.Context, onion *v1beta1.OnionService) error {
+	log := log.FromContext(ctx)
+
+	deployment := &appsv1.Deployment{}
+	err := r.Get(ctx, types.NamespacedName{Name: onion.Name, Namespace: onion.Namespace}, deployment)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return r.updateStatus(ctx, onion, "Pending", "", "Deployment not yet created")
+		}
+		return err
+	}
+
+	if deployment.Status.ReadyReplicas == 0 {
+		return r.updateStatus(ctx, onion, "Initializing", "", "Waiting for pod to become ready")
+	}
+
+	// If we already have an onion address, no need to fetch again
+	if onion.Status.OnionAddress != "" && onion.Status.Phase == "Ready" {
+		return nil
+	}
+
+	podList := &corev1.PodList{}
+	err = r.List(ctx, podList, client.InNamespace(onion.Namespace), client.MatchingLabels{"app": onion.Name})
+	if err != nil {
+		return err
+	}
+
+	if len(podList.Items) == 0 {
+		return r.updateStatus(ctx, onion, "Initializing", "", "No pods found")
+	}
+
+	// Find a running pod
+	var runningPod *corev1.Pod
+	for i := range podList.Items {
+		if podList.Items[i].Status.Phase == corev1.PodRunning {
+			runningPod = &podList.Items[i]
+			break
+		}
+	}
+
+	if runningPod == nil {
+		return r.updateStatus(ctx, onion, "Initializing", "", "Waiting for pod to start")
+	}
+
+	hiddenServiceDir := onion.Spec.HiddenServiceDir
+	if hiddenServiceDir == "" {
+		hiddenServiceDir = "/var/lib/tor/hidden_service"
+	}
+	hostnameFile := filepath.Join(hiddenServiceDir, "hostname")
+
+	onionAddress, err := r.execInPod(ctx, runningPod.Name, runningPod.Namespace, "tor", []string{"cat", hostnameFile})
+	if err != nil {
+		log.Info("Failed to read onion address, will retry", "error", err.Error())
+		return r.updateStatus(ctx, onion, "Initializing", "", "Waiting for Tor to generate .onion address")
+	}
+
+	onionAddress = strings.TrimSpace(onionAddress)
+	if onionAddress == "" {
+		return r.updateStatus(ctx, onion, "Initializing", "", "Onion address file is empty, waiting for Tor")
+	}
+
+	log.Info("Successfully retrieved onion address", "address", onionAddress)
+	return r.updateStatus(ctx, onion, "Ready", onionAddress, "OnionService is ready")
+}
+
+// execInPod executes a command in a pod and returns the output
+func (r *OnionServiceReconciler) execInPod(ctx context.Context, podName, namespace, containerName string, command []string) (string, error) {
+	if r.KubeClient == nil {
+		return "", fmt.Errorf("KubeClient is not initialized")
+	}
+
+	req := r.KubeClient.CoreV1().RESTClient().
+		Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: containerName,
+			Command:   command,
+			Stdout:    true,
+			Stderr:    true,
+		}, runtime.NewParameterCodec(r.Scheme))
+
+	config, err := ctrl.GetConfig()
+	if err != nil {
+		return "", err
+	}
+
+	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	if err != nil {
+		return "", err
+	}
+
+	var stdout, stderr strings.Builder
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdout: &stdout,
+		Stderr: &stderr,
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("exec failed: %w, stderr: %s", err, stderr.String())
+	}
+
+	return stdout.String(), nil
+}
+
+// updateStatus updates the OnionService status
+func (r *OnionServiceReconciler) updateStatus(ctx context.Context, onion *v1beta1.OnionService, phase, onionAddress, message string) error {
+	onion.Status.Phase = phase
+	onion.Status.OnionAddress = onionAddress
+	onion.Status.Message = message
+
+	return r.Status().Update(ctx, onion)
 }
 
 // func (r *OnionServiceReconciler) cleanupOnionService(ctx context.Context, onion *v1beta1.OnionService) error {
