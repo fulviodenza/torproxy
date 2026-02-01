@@ -14,7 +14,7 @@ resources:
   controller: true
   domain: stack.io
   group: tor
-  kind: TorBridgeConfig
+  kind: OnionService
   path: github.com/fulviodenza/torproxy/api/v1beta1
   version: v1beta1
 version: "3"

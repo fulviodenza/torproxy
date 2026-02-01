@@ -1,27 +1,23 @@
-# permissions for end users to edit torbridgeconfigs.
+# permissions for end users to view onionservices.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/name: torproxy
     app.kubernetes.io/managed-by: kustomize
-  name: torbridgeconfig-editor-role
+  name: onionservice-viewer-role
 rules:
 - apiGroups:
   - tor.stack.io
   resources:
-  - torbridgeconfigs
+  - onionservices
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - tor.stack.io
   resources:
-  - torbridgeconfigs/status
+  - onionservices/status
   verbs:
   - get

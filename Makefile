@@ -94,12 +94,11 @@ run: manifests generate fmt vet ## Run a controller from your host.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	$(CONTAINER_TOOL) build -t ${IMG}:${TAG} .
+	$(CONTAINER_TOOL) build --platform linux/amd64 -t ${IMG}:${TAG} .
 
 .PHONY: docker-build-debug
-TAG = debug ## Force debug tag
 docker-build-debug: ## Build debug docker image with the manager.
-	$(CONTAINER_TOOL) build -t ${IMG}:${TAG} -f debug.Dockerfile . 
+	$(CONTAINER_TOOL) build -t ${IMG}:debug -f debug.Dockerfile . 
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
